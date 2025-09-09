@@ -1,0 +1,14 @@
+Package: hspliable
+Title: Gibbs Sampler for Pliable Lasso with Missing Data
+Version: 0.1.0
+Authors@R: 
+    person("The Tien", "Mai", , "the.tien.mai@fhi.no", role = c("aut", "cre"))
+Description:This package performs Bayesian inference for the pliable lasso model for sparse interaction effects with Missing Data. It also extend to cover logistic regression.
+License: MIT + file LICENSE
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+LinkingTo: 
+    Rcpp, RcppArmadillo
+Imports: 
+    Rcpp
