@@ -14,7 +14,7 @@ Install the package using:
 ```r
 devtools::install_github('tienmt/hspliable')
 
-library(tobitbayes)
+library(hspliable)
 
 # simulate data
 ntest <- 50
