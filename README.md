@@ -14,6 +14,9 @@ Install the package using:
 ```r
 devtools::install_github('tienmt/hspliable')
 
+```
+## Linear sparse pliable model example
+```r
 library(hspliable)
 
 # simulate data
@@ -44,7 +47,7 @@ y <- yy[1:n]
 ytest <- yy[-(1:n)]
 
 ```
-Logistic pliable model
+## Logistic sparse pliable model for sparse interaction effec
 ```r
 library(hspliable)
 
