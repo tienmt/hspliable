@@ -46,9 +46,7 @@ yy <- beta0_true + zz %*% rep(theta0_true, q) +
 y <- yy[1:n]
 ytest <- yy[-(1:n)]
 
-```
-## Logistic sparse pliable model for sparse interaction effec
-```r
+
 library(hspliable)
 
 # Try with pliable Horseshoe function
@@ -60,6 +58,9 @@ beta_true
 theta_true
 
 
+```
+## Logistic sparse pliable model for sparse interaction effec
+```r
 library(hspliable)
 ntest <- 500
 n <- 200 
