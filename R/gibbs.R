@@ -51,16 +51,28 @@
 #' @importFrom Rcpp sourceCpp
 #' @examples
 #' \dontrun{
-#' n <- 100; p <- 5; q <- 2
+#' n <- 100;
+#' p <- 5;
+#' q <- 2
 #' X <- matrix(rnorm(n * p), n, p)
 #' Z <- matrix(rnorm(n * q), n, q)
-#' beta_true <- rnorm(p)
+#'
+#' beta_true <- rep(0,p) ; beta_true[1:2] = c(-2,1)
 #' theta_true <- matrix(rnorm(p * q), p, q)
-#' y <- X %*% beta_true + rowSums((Z %*% t(theta_true)) * X)
+#'
+#' y <- X %*% beta_true + rowSums((Z %*% t(theta_true)) * X) + rnorm(n)
 #'
 #' y[sample(n, 10)] <- NA  # introduce missing values
 #'
 #' fit <- pliable_HS(y, X, Z, n_iter = 500, burn_in = 200)
+#'
+#' str(fit)
+#'
+#' be_HS_2 <- colMeans(fit$beta)
+#' round( be_HS_2, 2 ) ; round( beta_true, 2 )
+#' theta_HS_2 <- apply(fit$theta, c(1, 2), mean)
+#' round( theta_HS_2, 2 ) ;
+#' round( theta_true, 2 )
 #' }
 #'
 #' @export
@@ -86,7 +98,7 @@ pliable_HS <- function(y, X, Z,
 
 
 
-#' Gibbs sampler for Logistic pliable Horseshoe with (Group) Horseshoe Prior for sparse interaction effects.
+#' Gibbs sampler for Logistic pliable lasso model with (Group) Horseshoe Prior for sparse interaction effects.
 #'
 #' This function implements a Gibbs sampler for logistic regression with
 #' pliable lasso structure and a group horseshoe prior.
@@ -146,13 +158,17 @@ pliable_HS <- function(y, X, Z,
 #' @examples
 #' \dontrun{
 #' set.seed(123)
-#' n <- 100; p <- 5; q <- 2
+#' n <- 100;
+#' p <- 5;
+#' q <- 2
 #' X <- matrix(rnorm(n*p), n, p)
 #' Z <- matrix(rnorm(n*q), n, q)
 #' beta_true <- rnorm(p)
 #' theta_true <- matrix(rnorm(p*q), p, q)
+#'
 #' eta <- 1 + X %*% beta_true + rowSums((X %*% theta_true) * Z)
 #' prob <- 1/(1+exp(-eta))
+#'
 #' y <- rbinom(n, 1, prob)
 #'
 #' fit <- pliable_HS_logistic(y, X, Z, n_iter = 2000, burn_in = 1000)
@@ -160,7 +176,8 @@ pliable_HS <- function(y, X, Z,
 #' }
 #'
 #' @export
-#'
+#' @useDynLib hspliable
+#' @importFrom Rcpp sourceCpp
 pliable_HS_logistic <- function(y,
                                                X,
                                                Z,
