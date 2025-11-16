@@ -77,16 +77,28 @@ This hierarchical structure is implemented in C++ using \strong{Rcpp and Armadil
 }
 \examples{
 \dontrun{
-n <- 100; p <- 5; q <- 2
+n <- 100;
+p <- 5;
+q <- 2
 X <- matrix(rnorm(n * p), n, p)
 Z <- matrix(rnorm(n * q), n, q)
-beta_true <- rnorm(p)
+
+beta_true <- rep(0,p) ; beta_true[1:2] = c(-2,1)
 theta_true <- matrix(rnorm(p * q), p, q)
-y <- X \%*\% beta_true + rowSums((Z \%*\% t(theta_true)) * X)
+
+y <- X \%*\% beta_true + rowSums((Z \%*\% t(theta_true)) * X) + rnorm(n)
 
 y[sample(n, 10)] <- NA  # introduce missing values
 
 fit <- pliable_HS(y, X, Z, n_iter = 500, burn_in = 200)
+
+str(fit)
+
+be_HS_2 <- colMeans(fit$beta)
+round( be_HS_2, 2 ) ; round( beta_true, 2 )
+theta_HS_2 <- apply(fit$theta, c(1, 2), mean)
+round( theta_HS_2, 2 ) ;
+round( theta_true, 2 )
 }
 
 }

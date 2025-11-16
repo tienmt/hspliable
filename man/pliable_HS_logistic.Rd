@@ -2,7 +2,7 @@
 % Please edit documentation in R/gibbs.R
 \name{pliable_HS_logistic}
 \alias{pliable_HS_logistic}
-\title{Gibbs sampler for Logistic pliable Horseshoe with (Group) Horseshoe Prior for sparse interaction effects.}
+\title{Gibbs sampler for Logistic pliable lasso model with (Group) Horseshoe Prior for sparse interaction effects.}
 \usage{
 pliable_HS_logistic(
   y,
@@ -82,13 +82,17 @@ Gibbs sampling, following the algorithm implemented in C++ for speed.
 \examples{
 \dontrun{
 set.seed(123)
-n <- 100; p <- 5; q <- 2
+n <- 100;
+p <- 5;
+q <- 2
 X <- matrix(rnorm(n*p), n, p)
 Z <- matrix(rnorm(n*q), n, q)
 beta_true <- rnorm(p)
 theta_true <- matrix(rnorm(p*q), p, q)
+
 eta <- 1 + X \%*\% beta_true + rowSums((X \%*\% theta_true) * Z)
 prob <- 1/(1+exp(-eta))
+
 y <- rbinom(n, 1, prob)
 
 fit <- pliable_HS_logistic(y, X, Z, n_iter = 2000, burn_in = 1000)
