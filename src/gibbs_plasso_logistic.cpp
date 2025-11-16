@@ -1,7 +1,8 @@
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // Gibbs sampler for logistic pliable lasso with group horseshoe prior
-// Rewrites the original R implementation into Rcpp + Armadillo.
+// Modified to handle missing responses (NA) in y by treating them as latent
+// variables and sampling them each Gibbs iteration.
 // NOTE: This implementation calls BayesLogit::rpg from R via Rcpp. Make sure
 // the BayesLogit package is installed in R before calling this function.
 
@@ -17,30 +18,42 @@ inline double rinv_gamma(double shape, double rate) {
 
 // multivariate normal sampler: mean m (arma::vec), cov V (arma::mat)
 inline arma::vec rmvnorm_arma(const arma::vec &m, const arma::mat &V) {
-  arma::mat U = arma::chol(V, "lower"); // upper triangular so V = U.t()*U
+  arma::mat U = arma::chol(V, "lower"); // lower triangular so V = U * U.t()
   arma::vec z = arma::randn<arma::vec>(m.n_elem);
   return m + U * z;
 }
 
 // [[Rcpp::export]]
 Rcpp::List gibbs_pliable_lasso_logistic2_rcpp(
-                            const arma::vec &y,
-                            const arma::mat &X,
-                            const arma::mat &Z,
-                            int n_iter = 2000,
-                            int burn_in = 1000,
-                            double sigma0_sq = 1.0,
-                            double eps = 1e-6,
-                            double clamp_min = 1e-10,
-                            double clamp_max = 1e10,
-                            bool verbose = true
+    Rcpp::NumericVector y_in,
+    const arma::mat &X,
+    const arma::mat &Z,
+    int n_iter = 2000,
+    int burn_in = 1000,
+    double sigma0_sq = 1.0,
+    double eps = 1e-6,
+    double clamp_min = 1e-10,
+    double clamp_max = 1e10,
+    bool verbose = true
 ) {
   // check dimensions
   int n = X.n_rows;
   int p = X.n_cols;
   int q = Z.n_cols;
-  if ((int) y.n_elem != n) stop("Length of y must equal nrow(X)");
+  if ((int) y_in.size() != n) stop("Length of y must equal nrow(X)");
   if ((int) Z.n_rows != n) stop("Z must have the same number of rows as X");
+  
+  // identify missing indices in y
+  std::vector<int> miss_idx;
+  arma::vec y = arma::zeros<arma::vec>(n);
+  for (int i = 0; i < n; ++i) {
+    if (Rcpp::NumericVector::is_na(y_in[i])) {
+      miss_idx.push_back(i);
+      y(i) = 0.0; // placeholder; will be sampled in the first iteration
+    } else {
+      y(i) = y_in[i];
+    }
+  }
   
   auto clamp = [&](double x)->double {
     if (x < clamp_min) return clamp_min;
@@ -108,6 +121,18 @@ Rcpp::List gibbs_pliable_lasso_logistic2_rcpp(
     }
     arma::vec base_lin = arma::ones<arma::vec>(n) * beta0 + Z * theta0;
     eta = base_lin + eta_all;
+    
+    // ----    HANDLE MISSING y: sample y_i ~ Bernoulli(sigmoid(eta_i)) for missing i
+    if (!miss_idx.empty()) {
+      for (int idx = 0; idx < (int) miss_idx.size(); ++idx) {
+        int i = miss_idx[idx];
+        double pi = 1.0 / (1.0 + std::exp(-eta(i)));
+        double u = arma::randu();
+        int draw = (u < pi) ? 1 : 0;
+        y(i) = draw;
+        y_in[i] = draw; // update the NumericVector so user can inspect if desired
+      }
+    }
     
     // 1) Polya-Gamma draws via BayesLogit::rpg
     NumericVector eta_r = wrap(eta);
