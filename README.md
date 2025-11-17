@@ -13,7 +13,7 @@ Install the package using:
 
 ```r
 devtools::install_github('tienmt/hspliable')
-
+```
 or install with vignettes "tutorial"
 ```r
 devtools::install_github(
