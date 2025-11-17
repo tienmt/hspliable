@@ -14,6 +14,13 @@ Install the package using:
 ```r
 devtools::install_github('tienmt/hspliable')
 
+or install with vignettes "tutorial"
+```r
+devtools::install_github(
+    "tienmt/hspliable", 
+    build_vignettes = TRUE,
+    build_opts = c("--no-resave-data", "--no-manual")
+)
 ```
 ## Linear sparse pliable model example
 ```r
