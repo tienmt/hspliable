@@ -260,15 +260,17 @@ pliable_HS_logistic <- function(y,
 #'
 #' @examples
 #' \dontrun{
-#' set.seed(123)
+#' set.seed(1)
 #' n <- 100
 #' p <- 10
 #' q <- 2
 #' X <- matrix(rnorm(n * p), n, p)
 #' Z <- matrix(rnorm(n * q), n, q)
+#'
 #' beta_true <- c(2, -2, 0, 2, rep(0, p - 4)) / 4
 #' theta_true <- matrix(0, p, q)
 #' theta_true[1:3, ] <- matrix(c(rep(1, q), rep(-2, q), c(1:q)), 3, q, byrow = TRUE) / 4
+#' 
 #' theta0_true <- rep(0.5, q)
 #' beta0_true <- 2
 #' # linear predictor and counts
