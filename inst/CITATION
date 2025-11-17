@@ -1,4 +1,4 @@
-citHeader("To cite  tobitbayes  package, please use:")
+citHeader("To cite  hspliable  package, please use:")
 
 bibentry(
   bibtype = "Article",
