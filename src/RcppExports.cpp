@@ -52,10 +52,31 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// gibbs_pliable_lasso_poisson_rcpp
+Rcpp::List gibbs_pliable_lasso_poisson_rcpp(Rcpp::NumericVector y_in, const arma::mat& X, const arma::mat& Z, int n_iter, int burn_in, double sigma0_sq, double eps, double clamp_min, double clamp_max, bool verbose);
+RcppExport SEXP _hspliable_gibbs_pliable_lasso_poisson_rcpp(SEXP y_inSEXP, SEXP XSEXP, SEXP ZSEXP, SEXP n_iterSEXP, SEXP burn_inSEXP, SEXP sigma0_sqSEXP, SEXP epsSEXP, SEXP clamp_minSEXP, SEXP clamp_maxSEXP, SEXP verboseSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::NumericVector >::type y_in(y_inSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type X(XSEXP);
+    Rcpp::traits::input_parameter< const arma::mat& >::type Z(ZSEXP);
+    Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
+    Rcpp::traits::input_parameter< int >::type burn_in(burn_inSEXP);
+    Rcpp::traits::input_parameter< double >::type sigma0_sq(sigma0_sqSEXP);
+    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
+    Rcpp::traits::input_parameter< double >::type clamp_min(clamp_minSEXP);
+    Rcpp::traits::input_parameter< double >::type clamp_max(clamp_maxSEXP);
+    Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
+    rcpp_result_gen = Rcpp::wrap(gibbs_pliable_lasso_poisson_rcpp(y_in, X, Z, n_iter, burn_in, sigma0_sq, eps, clamp_min, clamp_max, verbose));
+    return rcpp_result_gen;
+END_RCPP
+}
 
 static const R_CallMethodDef CallEntries[] = {
     {"_hspliable_gibbs_pliable_lasso_logistic2_rcpp", (DL_FUNC) &_hspliable_gibbs_pliable_lasso_logistic2_rcpp, 10},
     {"_hspliable_gibbs_pliable_lasso_missing_cpp", (DL_FUNC) &_hspliable_gibbs_pliable_lasso_missing_cpp, 11},
+    {"_hspliable_gibbs_pliable_lasso_poisson_rcpp", (DL_FUNC) &_hspliable_gibbs_pliable_lasso_poisson_rcpp, 10},
     {NULL, NULL, 0}
 };
 
