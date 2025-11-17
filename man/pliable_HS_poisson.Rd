@@ -47,11 +47,11 @@ Default is 1e10.}
 A list with elements:
 \item{beta0}{Posterior samples of the intercept \eqn{\beta_0}.}
 \item{theta0}{Posterior samples of the intercept modifier vector \eqn{\theta_0}.}
-\item{beta}{Posterior samples of main effects \eqn{\beta_j} (saved iterations \times p).}
+\item{beta}{Posterior samples of main effects \eqn{\beta_j} (saved iterations x p).}
 \item{theta}{Posterior samples of modifier effects \eqn{\theta_j}, array with dimensions
 (saved iterations, p, q).}
 \item{tau2}{Posterior samples of the global scale parameter \eqn{\tau^2}.}
-\item{lambda2}{Posterior samples of local scale parameters \eqn{\lambda_j^2} (saved iterations \times p).}
+\item{lambda2}{Posterior samples of local scale parameters \eqn{\lambda_j^2} (saved iterations x p).}
 \item{config}{List of configuration parameters used in the run.}
 }
 \description{
@@ -88,7 +88,8 @@ theta_true[1:3, ] <- matrix(c(rep(1, q), rep(-2, q), c(1:q)), 3, q, byrow = TRUE
 theta0_true <- rep(0.5, q)
 beta0_true <- 2
 # linear predictor and counts
-eta <- beta0_true + Z \%*\% theta0_true + rowSums(sapply(1:p, function(j) X[, j] * (beta_true[j] + Z \%*\% theta_true[j, ])))
+eta <- beta0_true + Z \%*\% theta0_true +
+        rowSums(sapply(1:p, function(j) X[, j] * (beta_true[j] + Z \%*\% theta_true[j, ])))
 y <- rpois(n, lambda = exp(eta))
 
 fit <- pliable_HS_poisson(y, X, Z, n_iter = 5000L, burn_in = 1000L, verbose = TRUE)
