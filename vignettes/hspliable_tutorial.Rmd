@@ -1,1 +1,268 @@
 
+---
+title: "Tutorial: Bayesian Pliable Lasso with Horseshoe Prior"
+author: "The Tien Mai"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Tutorial: hspliable}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Introduction
+
+The **`hspliable`** package provides **Bayesian inference for pliable lasso models** using the **Horseshoe prior**.
+The pliable lasso framework extends standard sparse regression by allowing **interaction effects between predictors and modifying variables**:
+
+* Sparse *main effects*
+* Sparse *interaction effects*
+* A *hierarchical structure* that encourages meaningful interactions
+* Extension to **Gaussian**, **Logistic**, and **Poisson** GLMs
+* Support for **missing responses**
+
+This vignette demonstrates how to:
+
+1. Install the package
+2. Fit pliable Horseshoe models
+3. Inspect posterior samples and parameter estimates
+4. Use the linear, logistic, and Poisson model variants
+
+The underlying methodology is described in:
+
+> **“Bayesian Pliable Lasso with Horseshoe Prior for Interaction Effects in GLMs with Missing Responses.”**
+
+---
+
+# Installation
+
+```r
+devtools::install_github("tienmt/hspliable")
+library(hspliable)
+```
+
+---
+
+# 1. Linear Pliable Model Example
+
+We first illustrate the linear pliable lasso with simulated data.
+
+```r
+library(hspliable)
+
+# simulate data
+ntest <- 50
+n  <- 200 
+p  <- 10 
+q  <- 2
+
+xx <- matrix(rnorm((n + ntest) * p), (n + ntest), p)
+X <- xx[1:n, ]
+xtest <- xx[-(1:n), ]
+
+zz <- matrix(rnorm((n + ntest) * q), (n + ntest), q)
+Z <- zz[1:n, ]
+ztest <- zz[-(1:n), ]
+
+beta_true <- c(2, -2, 2, 2, rep(0, p - 4))
+
+theta_true <- matrix(0, p, q)
+theta_true[1:3, ] <- matrix(
+  c(rep(1, q),
+    rep(-2, q),
+    c(1:q)),
+  3, q, byrow = TRUE
+)
+
+theta0_true <- 0.5
+beta0_true  <- -1
+
+yy <- beta0_true +
+      zz %*% rep(theta0_true, q) +
+      rowSums(sapply(1:p, function(j)
+        xx[, j] * (beta_true[j] + zz %*% theta_true[j, ])
+      )) +
+      rnorm(n + ntest)
+
+y      <- yy[1:n]
+ytest  <- yy[-(1:n)]
+```
+
+### Fit the pliable Horseshoe regression model
+
+```r
+fit_pHS <- pliable_HS(y, X, Z, n_iter = 1000, burn_in = 500)
+```
+
+Posterior means for the main effects:
+
+```r
+(be_HS_2 <- colMeans(fit_pHS$beta))
+beta_true
+```
+
+Posterior means for interaction effects:
+
+```r
+(theta_HS_2 <- apply(fit_pHS$theta, c(1, 2), mean))
+theta_true
+```
+
+---
+
+# 2. Logistic Pliable Model
+
+We now illustrate a sparse logistic pliable regression model.
+
+```r
+library(hspliable)
+
+ntest <- 500
+n  <- 200 
+p  <- 10
+q  <- 1
+
+xx <- matrix(rnorm((n + ntest) * p), (n + ntest), p)
+X  <- xx[1:n, ]
+xtest <- xx[-(1:n), ]
+
+zz <- matrix(rnorm((n + ntest) * q), (n + ntest), q)
+Z  <- zz[1:n, ]
+ztest <- zz[-(1:n), ]
+
+beta_true <- c(2, -2, 2, 2, rep(0, p - 4))
+theta_true <- matrix(0, p, q)
+
+theta0_true <- 0.5
+beta0_true  <- 2
+
+# linear predictor
+my_mu <- beta0_true +
+         zz %*% rep(theta0_true, q) +
+         rowSums(sapply(1:p, function(j)
+           xx[, j] * (beta_true[j] + zz %*% theta_true[j, ])
+         ))
+
+yy <- rbinom(n + ntest, 1, prob = boot::inv.logit(my_mu))
+y <- yy[1:n]
+```
+
+### Fit the logistic pliable model
+
+```r
+fit2_cpp <- pliable_HS_logistic(
+  y, X, as.matrix(Z),
+  eps       = 1e-10,
+  n_iter    = 10000,
+  burn_in   = 3000,
+  clamp_min = 1e-15,
+  verbose   = TRUE
+)
+```
+
+Parameter estimates:
+
+```r
+b_pHS_cpp <- colMeans(fit2_cpp$beta)
+theta_pHS <- apply(fit2_cpp$theta, c(2, 3), mean)
+
+b_pHS_cpp
+beta_true
+
+theta_pHS
+theta_true
+```
+
+Mean squared error summaries:
+
+```r
+cat("MSE(beta) =", sum((b_pHS_cpp - beta_true)^2))
+cat("MSE(theta) =", sum((theta_pHS - theta_true)^2))
+```
+
+---
+
+# 3. Poisson Pliable Model
+
+```r
+library(hspliable)
+set.seed(1)
+
+n <- 100
+p <- 10
+q <- 2
+
+X <- matrix(rnorm(n * p), n, p)
+Z <- matrix(rnorm(n * q), n, q)
+
+beta_true  <- c(2, -2, 0, 2, rep(0, p - 4)) / 4
+theta_true <- matrix(0, p, q)
+theta_true[1:2, ] <- matrix(
+  c(rep(1, q),
+    rep(-2, q),
+    c(1:q)),
+  2, q, byrow = TRUE
+) / 4
+
+theta0_true <- rep(0.5, q)
+beta0_true  <- 2
+
+eta <- beta0_true +
+       Z %*% theta0_true +
+       rowSums(sapply(1:p, function(j)
+         X[, j] * (beta_true[j] + Z %*% theta_true[j, ])
+       ))
+
+y <- rpois(n, lambda = exp(eta))
+```
+
+### Fit the Poisson pliable model
+
+```r
+fit <- pliable_HS_poisson(y, X, Z,
+                          n_iter = 5000L,
+                          burn_in = 1000L,
+                          verbose = TRUE)
+```
+
+Posterior means:
+
+```r
+colMeans(fit$beta)
+beta_true
+
+apply(fit$theta, c(2, 3), mean)
+```
+
+---
+
+# Summary
+
+The **`hspliable`** package provides:
+
+* Bayesian estimation of sparse pliable regression models
+* Horseshoe priors for enhanced shrinkage
+* Unified handling of **Gaussian**, **Logistic**, and **Poisson** responses
+* Support for **missing Y values**
+* Efficient C++ implementations for scalable MCMC sampling
+
+This vignette demonstrated the essential workflow for fitting pliable models and extracting posterior summaries.
+
+For additional details or feature requests, please visit:
+**[https://github.com/tienmt/hspliable](https://github.com/tienmt/hspliable)**
+
+---
+
+# Session Info
+
+```{r}
+sessionInfo()
+```
+
+```
