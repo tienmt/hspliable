@@ -76,7 +76,7 @@ Posterior inference is performed via Gibbs sampling implemented in C++ for speed
 }
 \examples{
 \dontrun{
-set.seed(123)
+set.seed(1)
 n <- 100
 p <- 10
 q <- 2
