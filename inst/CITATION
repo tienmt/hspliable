@@ -1,1 +1,15 @@
+citHeader("To cite  tobitbayes  package, please use:")
+
+bibentry(
+  bibtype = "Article",
+  title = "High-dimensional Bayesian Tobit regression for censored response with Horseshoe prior.",
+  author = "The Tien Mai",
+  journal = "arXiv:2505.08288",
+  year = "2025",
+  volume = "",
+  number = "",
+  pages = "",
+  doi = "10.48550/arXiv.2505.08288"
+)
+
 
