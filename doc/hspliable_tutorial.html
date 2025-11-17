@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+<meta charset="utf-8" />
+<meta name="generator" content="pandoc" />
+<meta http-equiv="X-UA-Compatible" content="IE=EDGE" />
+
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+
+<meta name="author" content="The Tien Mai" />
+
+
+<title>Tutorial: Bayesian Pliable Lasso with Horseshoe Prior</title>
+
+<script>// Pandoc 2.9 adds attributes on both header and div. We remove the former (to
+// be compatible with the behavior of Pandoc < 2.8).
+document.addEventListener('DOMContentLoaded', function(e) {
+  var hs = document.querySelectorAll("div.section[class*='level'] > :first-child");
+  var i, h, a;
+  for (i = 0; i < hs.length; i++) {
+    h = hs[i];
+    if (!/^h[1-6]$/i.test(h.tagName)) continue;  // it should be a header h1-h6
+    a = h.attributes;
+    while (a.length > 0) h.removeAttribute(a[0].name);
+  }
+});
+</script>
+
+<style type="text/css">
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+span.underline{text-decoration: underline;}
+div.column{display: inline-block; vertical-align: top; width: 50%;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+</style>
+
+
+
+<style type="text/css">
+code {
+white-space: pre;
+}
+.sourceCode {
+overflow: visible;
+}
+</style>
+<style type="text/css" data-origin="pandoc">
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+{ counter-reset: source-line 0; }
+pre.numberSource code > span
+{ position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+{ content: counter(source-line);
+position: relative; left: -1em; text-align: right; vertical-align: baseline;
+border: none; display: inline-block;
+-webkit-touch-callout: none; -webkit-user-select: none;
+-khtml-user-select: none; -moz-user-select: none;
+-ms-user-select: none; user-select: none;
+padding: 0 4px; width: 4em;
+color: #aaaaaa;
+}
+pre.numberSource { margin-left: 3em; border-left: 1px solid #aaaaaa; padding-left: 4px; }
+div.sourceCode
+{ }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+code span.al { color: #ff0000; font-weight: bold; } 
+code span.an { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.at { color: #7d9029; } 
+code span.bn { color: #40a070; } 
+code span.bu { color: #008000; } 
+code span.cf { color: #007020; font-weight: bold; } 
+code span.ch { color: #4070a0; } 
+code span.cn { color: #880000; } 
+code span.co { color: #60a0b0; font-style: italic; } 
+code span.cv { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.do { color: #ba2121; font-style: italic; } 
+code span.dt { color: #902000; } 
+code span.dv { color: #40a070; } 
+code span.er { color: #ff0000; font-weight: bold; } 
+code span.ex { } 
+code span.fl { color: #40a070; } 
+code span.fu { color: #06287e; } 
+code span.im { color: #008000; font-weight: bold; } 
+code span.in { color: #60a0b0; font-weight: bold; font-style: italic; } 
+code span.kw { color: #007020; font-weight: bold; } 
+code span.op { color: #666666; } 
+code span.ot { color: #007020; } 
+code span.pp { color: #bc7a00; } 
+code span.sc { color: #4070a0; } 
+code span.ss { color: #bb6688; } 
+code span.st { color: #4070a0; } 
+code span.va { color: #19177c; } 
+code span.vs { color: #4070a0; } 
+code span.wa { color: #60a0b0; font-weight: bold; font-style: italic; } 
+</style>
+<script>
+// apply pandoc div.sourceCode style to pre.sourceCode instead
+(function() {
+  var sheets = document.styleSheets;
+  for (var i = 0; i < sheets.length; i++) {
+    if (sheets[i].ownerNode.dataset["origin"] !== "pandoc") continue;
+    try { var rules = sheets[i].cssRules; } catch (e) { continue; }
+    var j = 0;
+    while (j < rules.length) {
+      var rule = rules[j];
+      // check if there is a div.sourceCode rule
+      if (rule.type !== rule.STYLE_RULE || rule.selectorText !== "div.sourceCode") {
+        j++;
+        continue;
+      }
+      var style = rule.style.cssText;
+      // check if color or background-color is set
+      if (rule.style.color === '' && rule.style.backgroundColor === '') {
+        j++;
+        continue;
+      }
+      // replace div.sourceCode by a pre.sourceCode rule
+      sheets[i].deleteRule(j);
+      sheets[i].insertRule('pre.sourceCode{' + style + '}', j);
+    }
+  }
+})();
+</script>
+
+
+
+
+<style type="text/css">body {
+background-color: #fff;
+margin: 1em auto;
+max-width: 700px;
+overflow: visible;
+padding-left: 2em;
+padding-right: 2em;
+font-family: "Open Sans", "Helvetica Neue", Helvetica, Arial, sans-serif;
+font-size: 14px;
+line-height: 1.35;
+}
+#TOC {
+clear: both;
+margin: 0 0 10px 10px;
+padding: 4px;
+width: 400px;
+border: 1px solid #CCCCCC;
+border-radius: 5px;
+background-color: #f6f6f6;
+font-size: 13px;
+line-height: 1.3;
+}
+#TOC .toctitle {
+font-weight: bold;
+font-size: 15px;
+margin-left: 5px;
+}
+#TOC ul {
+padding-left: 40px;
+margin-left: -1.5em;
+margin-top: 5px;
+margin-bottom: 5px;
+}
+#TOC ul ul {
+margin-left: -2em;
+}
+#TOC li {
+line-height: 16px;
+}
+table {
+margin: 1em auto;
+border-width: 1px;
+border-color: #DDDDDD;
+border-style: outset;
+border-collapse: collapse;
+}
+table th {
+border-width: 2px;
+padding: 5px;
+border-style: inset;
+}
+table td {
+border-width: 1px;
+border-style: inset;
+line-height: 18px;
+padding: 5px 5px;
+}
+table, table th, table td {
+border-left-style: none;
+border-right-style: none;
+}
+table thead, table tr.even {
+background-color: #f7f7f7;
+}
+p {
+margin: 0.5em 0;
+}
+blockquote {
+background-color: #f6f6f6;
+padding: 0.25em 0.75em;
+}
+hr {
+border-style: solid;
+border: none;
+border-top: 1px solid #777;
+margin: 28px 0;
+}
+dl {
+margin-left: 0;
+}
+dl dd {
+margin-bottom: 13px;
+margin-left: 13px;
+}
+dl dt {
+font-weight: bold;
+}
+ul {
+margin-top: 0;
+}
+ul li {
+list-style: circle outside;
+}
+ul ul {
+margin-bottom: 0;
+}
+pre, code {
+background-color: #f7f7f7;
+border-radius: 3px;
+color: #333;
+white-space: pre-wrap; 
+}
+pre {
+border-radius: 3px;
+margin: 5px 0px 10px 0px;
+padding: 10px;
+}
+pre:not([class]) {
+background-color: #f7f7f7;
+}
+code {
+font-family: Consolas, Monaco, 'Courier New', monospace;
+font-size: 85%;
+}
+p > code, li > code {
+padding: 2px 0px;
+}
+div.figure {
+text-align: center;
+}
+img {
+background-color: #FFFFFF;
+padding: 2px;
+border: 1px solid #DDDDDD;
+border-radius: 3px;
+border: 1px solid #CCCCCC;
+margin: 0 5px;
+}
+h1 {
+margin-top: 0;
+font-size: 35px;
+line-height: 40px;
+}
+h2 {
+border-bottom: 4px solid #f7f7f7;
+padding-top: 10px;
+padding-bottom: 2px;
+font-size: 145%;
+}
+h3 {
+border-bottom: 2px solid #f7f7f7;
+padding-top: 10px;
+font-size: 120%;
+}
+h4 {
+border-bottom: 1px solid #f7f7f7;
+margin-left: 8px;
+font-size: 105%;
+}
+h5, h6 {
+border-bottom: 1px solid #ccc;
+font-size: 105%;
+}
+a {
+color: #0033dd;
+text-decoration: none;
+}
+a:hover {
+color: #6666ff; }
+a:visited {
+color: #800080; }
+a:visited:hover {
+color: #BB00BB; }
+a[href^="http:"] {
+text-decoration: underline; }
+a[href^="https:"] {
+text-decoration: underline; }
+
+code > span.kw { color: #555; font-weight: bold; } 
+code > span.dt { color: #902000; } 
+code > span.dv { color: #40a070; } 
+code > span.bn { color: #d14; } 
+code > span.fl { color: #d14; } 
+code > span.ch { color: #d14; } 
+code > span.st { color: #d14; } 
+code > span.co { color: #888888; font-style: italic; } 
+code > span.ot { color: #007020; } 
+code > span.al { color: #ff0000; font-weight: bold; } 
+code > span.fu { color: #900; font-weight: bold; } 
+code > span.er { color: #a61717; background-color: #e3d2d2; } 
+</style>
+
+
+
+
+</head>
+
+<body>
+
+
+
+
+<h1 class="title toc-ignore">Tutorial: Bayesian Pliable Lasso with
+Horseshoe Prior</h1>
+<h4 class="author">The Tien Mai</h4>
+
+
+
+<div id="introduction" class="section level1">
+<h1>Introduction</h1>
+<p>The <strong><code>hspliable</code></strong> package provides
+<strong>Bayesian inference for pliable lasso models</strong> using the
+<strong>Horseshoe prior</strong>. The pliable lasso framework extends
+standard sparse regression by allowing <strong>interaction effects
+between predictors and modifying variables</strong>:</p>
+<ul>
+<li>Sparse <em>main effects</em></li>
+<li>Sparse <em>interaction effects</em></li>
+<li>A <em>hierarchical structure</em> that encourages meaningful
+interactions</li>
+<li>Extension to <strong>Gaussian</strong>, <strong>Logistic</strong>,
+and <strong>Poisson</strong> GLMs</li>
+<li>Support for <strong>missing responses</strong></li>
+</ul>
+<p>This vignette demonstrates how to:</p>
+<ol style="list-style-type: decimal">
+<li>Install the package</li>
+<li>Fit pliable Horseshoe models</li>
+<li>Inspect posterior samples and parameter estimates</li>
+<li>Use the linear, logistic, and Poisson model variants</li>
+</ol>
+<p>The underlying methodology is described in:</p>
+<blockquote>
+<p><strong>“Bayesian Pliable Lasso with Horseshoe Prior for Interaction
+Effects in GLMs with Missing Responses.”</strong></p>
+</blockquote>
+<hr />
+</div>
+<div id="installation" class="section level1">
+<h1>Installation</h1>
+<div class="sourceCode" id="cb1"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" tabindex="-1"></a>devtools<span class="sc">::</span><span class="fu">install_github</span>(<span class="st">&quot;tienmt/hspliable&quot;</span>)</span>
+<span id="cb1-2"><a href="#cb1-2" tabindex="-1"></a><span class="fu">library</span>(hspliable)</span></code></pre></div>
+<hr />
+</div>
+<div id="linear-pliable-model-example" class="section level1">
+<h1>1. Linear Pliable Model Example</h1>
+<p>We first illustrate the linear pliable lasso with simulated data.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb2-1"><a href="#cb2-1" tabindex="-1"></a><span class="fu">library</span>(hspliable)</span>
+<span id="cb2-2"><a href="#cb2-2" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" tabindex="-1"></a><span class="co"># simulate data</span></span>
+<span id="cb2-4"><a href="#cb2-4" tabindex="-1"></a>ntest <span class="ot">&lt;-</span> <span class="dv">50</span></span>
+<span id="cb2-5"><a href="#cb2-5" tabindex="-1"></a>n  <span class="ot">&lt;-</span> <span class="dv">200</span> </span>
+<span id="cb2-6"><a href="#cb2-6" tabindex="-1"></a>p  <span class="ot">&lt;-</span> <span class="dv">10</span> </span>
+<span id="cb2-7"><a href="#cb2-7" tabindex="-1"></a>q  <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb2-8"><a href="#cb2-8" tabindex="-1"></a></span>
+<span id="cb2-9"><a href="#cb2-9" tabindex="-1"></a>xx <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>((n <span class="sc">+</span> ntest) <span class="sc">*</span> p), (n <span class="sc">+</span> ntest), p)</span>
+<span id="cb2-10"><a href="#cb2-10" tabindex="-1"></a>X <span class="ot">&lt;-</span> xx[<span class="dv">1</span><span class="sc">:</span>n, ]</span>
+<span id="cb2-11"><a href="#cb2-11" tabindex="-1"></a>xtest <span class="ot">&lt;-</span> xx[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span>n), ]</span>
+<span id="cb2-12"><a href="#cb2-12" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" tabindex="-1"></a>zz <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>((n <span class="sc">+</span> ntest) <span class="sc">*</span> q), (n <span class="sc">+</span> ntest), q)</span>
+<span id="cb2-14"><a href="#cb2-14" tabindex="-1"></a>Z <span class="ot">&lt;-</span> zz[<span class="dv">1</span><span class="sc">:</span>n, ]</span>
+<span id="cb2-15"><a href="#cb2-15" tabindex="-1"></a>ztest <span class="ot">&lt;-</span> zz[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span>n), ]</span>
+<span id="cb2-16"><a href="#cb2-16" tabindex="-1"></a></span>
+<span id="cb2-17"><a href="#cb2-17" tabindex="-1"></a>beta_true <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="fu">rep</span>(<span class="dv">0</span>, p <span class="sc">-</span> <span class="dv">4</span>))</span>
+<span id="cb2-18"><a href="#cb2-18" tabindex="-1"></a></span>
+<span id="cb2-19"><a href="#cb2-19" tabindex="-1"></a>theta_true <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, p, q)</span>
+<span id="cb2-20"><a href="#cb2-20" tabindex="-1"></a>theta_true[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, ] <span class="ot">&lt;-</span> <span class="fu">matrix</span>(</span>
+<span id="cb2-21"><a href="#cb2-21" tabindex="-1"></a>  <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, q),</span>
+<span id="cb2-22"><a href="#cb2-22" tabindex="-1"></a>    <span class="fu">rep</span>(<span class="sc">-</span><span class="dv">2</span>, q),</span>
+<span id="cb2-23"><a href="#cb2-23" tabindex="-1"></a>    <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span>q)),</span>
+<span id="cb2-24"><a href="#cb2-24" tabindex="-1"></a>  <span class="dv">3</span>, q, <span class="at">byrow =</span> <span class="cn">TRUE</span></span>
+<span id="cb2-25"><a href="#cb2-25" tabindex="-1"></a>)</span>
+<span id="cb2-26"><a href="#cb2-26" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" tabindex="-1"></a>theta0_true <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb2-28"><a href="#cb2-28" tabindex="-1"></a>beta0_true  <span class="ot">&lt;-</span> <span class="sc">-</span><span class="dv">1</span></span>
+<span id="cb2-29"><a href="#cb2-29" tabindex="-1"></a></span>
+<span id="cb2-30"><a href="#cb2-30" tabindex="-1"></a>yy <span class="ot">&lt;-</span> beta0_true <span class="sc">+</span></span>
+<span id="cb2-31"><a href="#cb2-31" tabindex="-1"></a>      zz <span class="sc">%*%</span> <span class="fu">rep</span>(theta0_true, q) <span class="sc">+</span></span>
+<span id="cb2-32"><a href="#cb2-32" tabindex="-1"></a>      <span class="fu">rowSums</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>p, <span class="cf">function</span>(j)</span>
+<span id="cb2-33"><a href="#cb2-33" tabindex="-1"></a>        xx[, j] <span class="sc">*</span> (beta_true[j] <span class="sc">+</span> zz <span class="sc">%*%</span> theta_true[j, ])</span>
+<span id="cb2-34"><a href="#cb2-34" tabindex="-1"></a>      )) <span class="sc">+</span></span>
+<span id="cb2-35"><a href="#cb2-35" tabindex="-1"></a>      <span class="fu">rnorm</span>(n <span class="sc">+</span> ntest)</span>
+<span id="cb2-36"><a href="#cb2-36" tabindex="-1"></a></span>
+<span id="cb2-37"><a href="#cb2-37" tabindex="-1"></a>y      <span class="ot">&lt;-</span> yy[<span class="dv">1</span><span class="sc">:</span>n]</span>
+<span id="cb2-38"><a href="#cb2-38" tabindex="-1"></a>ytest  <span class="ot">&lt;-</span> yy[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span>n)]</span></code></pre></div>
+<div id="fit-the-pliable-horseshoe-regression-model" class="section level3">
+<h3>Fit the pliable Horseshoe regression model</h3>
+<div class="sourceCode" id="cb3"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb3-1"><a href="#cb3-1" tabindex="-1"></a>fit_pHS <span class="ot">&lt;-</span> <span class="fu">pliable_HS</span>(y, X, Z, <span class="at">n_iter =</span> <span class="dv">1000</span>, <span class="at">burn_in =</span> <span class="dv">500</span>)</span></code></pre></div>
+<p>Posterior means for the main effects:</p>
+<div class="sourceCode" id="cb4"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb4-1"><a href="#cb4-1" tabindex="-1"></a>(be_HS_2 <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(fit_pHS<span class="sc">$</span>beta))</span>
+<span id="cb4-2"><a href="#cb4-2" tabindex="-1"></a>beta_true</span></code></pre></div>
+<p>Posterior means for interaction effects:</p>
+<div class="sourceCode" id="cb5"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" tabindex="-1"></a>(theta_HS_2 <span class="ot">&lt;-</span> <span class="fu">apply</span>(fit_pHS<span class="sc">$</span>theta, <span class="fu">c</span>(<span class="dv">1</span>, <span class="dv">2</span>), mean))</span>
+<span id="cb5-2"><a href="#cb5-2" tabindex="-1"></a>theta_true</span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="logistic-pliable-model" class="section level1">
+<h1>2. Logistic Pliable Model</h1>
+<p>We now illustrate a sparse logistic pliable regression model.</p>
+<div class="sourceCode" id="cb6"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb6-1"><a href="#cb6-1" tabindex="-1"></a><span class="fu">library</span>(hspliable)</span>
+<span id="cb6-2"><a href="#cb6-2" tabindex="-1"></a></span>
+<span id="cb6-3"><a href="#cb6-3" tabindex="-1"></a>ntest <span class="ot">&lt;-</span> <span class="dv">500</span></span>
+<span id="cb6-4"><a href="#cb6-4" tabindex="-1"></a>n  <span class="ot">&lt;-</span> <span class="dv">200</span> </span>
+<span id="cb6-5"><a href="#cb6-5" tabindex="-1"></a>p  <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb6-6"><a href="#cb6-6" tabindex="-1"></a>q  <span class="ot">&lt;-</span> <span class="dv">1</span></span>
+<span id="cb6-7"><a href="#cb6-7" tabindex="-1"></a></span>
+<span id="cb6-8"><a href="#cb6-8" tabindex="-1"></a>xx <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>((n <span class="sc">+</span> ntest) <span class="sc">*</span> p), (n <span class="sc">+</span> ntest), p)</span>
+<span id="cb6-9"><a href="#cb6-9" tabindex="-1"></a>X  <span class="ot">&lt;-</span> xx[<span class="dv">1</span><span class="sc">:</span>n, ]</span>
+<span id="cb6-10"><a href="#cb6-10" tabindex="-1"></a>xtest <span class="ot">&lt;-</span> xx[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span>n), ]</span>
+<span id="cb6-11"><a href="#cb6-11" tabindex="-1"></a></span>
+<span id="cb6-12"><a href="#cb6-12" tabindex="-1"></a>zz <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>((n <span class="sc">+</span> ntest) <span class="sc">*</span> q), (n <span class="sc">+</span> ntest), q)</span>
+<span id="cb6-13"><a href="#cb6-13" tabindex="-1"></a>Z  <span class="ot">&lt;-</span> zz[<span class="dv">1</span><span class="sc">:</span>n, ]</span>
+<span id="cb6-14"><a href="#cb6-14" tabindex="-1"></a>ztest <span class="ot">&lt;-</span> zz[<span class="sc">-</span>(<span class="dv">1</span><span class="sc">:</span>n), ]</span>
+<span id="cb6-15"><a href="#cb6-15" tabindex="-1"></a></span>
+<span id="cb6-16"><a href="#cb6-16" tabindex="-1"></a>beta_true <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">2</span>, <span class="dv">2</span>, <span class="fu">rep</span>(<span class="dv">0</span>, p <span class="sc">-</span> <span class="dv">4</span>))</span>
+<span id="cb6-17"><a href="#cb6-17" tabindex="-1"></a>theta_true <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, p, q)</span>
+<span id="cb6-18"><a href="#cb6-18" tabindex="-1"></a></span>
+<span id="cb6-19"><a href="#cb6-19" tabindex="-1"></a>theta0_true <span class="ot">&lt;-</span> <span class="fl">0.5</span></span>
+<span id="cb6-20"><a href="#cb6-20" tabindex="-1"></a>beta0_true  <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb6-21"><a href="#cb6-21" tabindex="-1"></a></span>
+<span id="cb6-22"><a href="#cb6-22" tabindex="-1"></a><span class="co"># linear predictor</span></span>
+<span id="cb6-23"><a href="#cb6-23" tabindex="-1"></a>my_mu <span class="ot">&lt;-</span> beta0_true <span class="sc">+</span></span>
+<span id="cb6-24"><a href="#cb6-24" tabindex="-1"></a>         zz <span class="sc">%*%</span> <span class="fu">rep</span>(theta0_true, q) <span class="sc">+</span></span>
+<span id="cb6-25"><a href="#cb6-25" tabindex="-1"></a>         <span class="fu">rowSums</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>p, <span class="cf">function</span>(j)</span>
+<span id="cb6-26"><a href="#cb6-26" tabindex="-1"></a>           xx[, j] <span class="sc">*</span> (beta_true[j] <span class="sc">+</span> zz <span class="sc">%*%</span> theta_true[j, ])</span>
+<span id="cb6-27"><a href="#cb6-27" tabindex="-1"></a>         ))</span>
+<span id="cb6-28"><a href="#cb6-28" tabindex="-1"></a></span>
+<span id="cb6-29"><a href="#cb6-29" tabindex="-1"></a>yy <span class="ot">&lt;-</span> <span class="fu">rbinom</span>(n <span class="sc">+</span> ntest, <span class="dv">1</span>, <span class="at">prob =</span> boot<span class="sc">::</span><span class="fu">inv.logit</span>(my_mu))</span>
+<span id="cb6-30"><a href="#cb6-30" tabindex="-1"></a>y <span class="ot">&lt;-</span> yy[<span class="dv">1</span><span class="sc">:</span>n]</span></code></pre></div>
+<div id="fit-the-logistic-pliable-model" class="section level3">
+<h3>Fit the logistic pliable model</h3>
+<div class="sourceCode" id="cb7"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb7-1"><a href="#cb7-1" tabindex="-1"></a>fit2_cpp <span class="ot">&lt;-</span> <span class="fu">pliable_HS_logistic</span>(</span>
+<span id="cb7-2"><a href="#cb7-2" tabindex="-1"></a>  y, X, <span class="fu">as.matrix</span>(Z),</span>
+<span id="cb7-3"><a href="#cb7-3" tabindex="-1"></a>  <span class="at">eps       =</span> <span class="fl">1e-10</span>,</span>
+<span id="cb7-4"><a href="#cb7-4" tabindex="-1"></a>  <span class="at">n_iter    =</span> <span class="dv">10000</span>,</span>
+<span id="cb7-5"><a href="#cb7-5" tabindex="-1"></a>  <span class="at">burn_in   =</span> <span class="dv">3000</span>,</span>
+<span id="cb7-6"><a href="#cb7-6" tabindex="-1"></a>  <span class="at">clamp_min =</span> <span class="fl">1e-15</span>,</span>
+<span id="cb7-7"><a href="#cb7-7" tabindex="-1"></a>  <span class="at">verbose   =</span> <span class="cn">TRUE</span></span>
+<span id="cb7-8"><a href="#cb7-8" tabindex="-1"></a>)</span></code></pre></div>
+<p>Parameter estimates:</p>
+<div class="sourceCode" id="cb8"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb8-1"><a href="#cb8-1" tabindex="-1"></a>b_pHS_cpp <span class="ot">&lt;-</span> <span class="fu">colMeans</span>(fit2_cpp<span class="sc">$</span>beta)</span>
+<span id="cb8-2"><a href="#cb8-2" tabindex="-1"></a>theta_pHS <span class="ot">&lt;-</span> <span class="fu">apply</span>(fit2_cpp<span class="sc">$</span>theta, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>), mean)</span>
+<span id="cb8-3"><a href="#cb8-3" tabindex="-1"></a></span>
+<span id="cb8-4"><a href="#cb8-4" tabindex="-1"></a>b_pHS_cpp</span>
+<span id="cb8-5"><a href="#cb8-5" tabindex="-1"></a>beta_true</span>
+<span id="cb8-6"><a href="#cb8-6" tabindex="-1"></a></span>
+<span id="cb8-7"><a href="#cb8-7" tabindex="-1"></a>theta_pHS</span>
+<span id="cb8-8"><a href="#cb8-8" tabindex="-1"></a>theta_true</span></code></pre></div>
+<p>Mean squared error summaries:</p>
+<div class="sourceCode" id="cb9"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;MSE(beta) =&quot;</span>, <span class="fu">sum</span>((b_pHS_cpp <span class="sc">-</span> beta_true)<span class="sc">^</span><span class="dv">2</span>))</span>
+<span id="cb9-2"><a href="#cb9-2" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;MSE(theta) =&quot;</span>, <span class="fu">sum</span>((theta_pHS <span class="sc">-</span> theta_true)<span class="sc">^</span><span class="dv">2</span>))</span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="poisson-pliable-model" class="section level1">
+<h1>3. Poisson Pliable Model</h1>
+<div class="sourceCode" id="cb10"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb10-1"><a href="#cb10-1" tabindex="-1"></a><span class="fu">library</span>(hspliable)</span>
+<span id="cb10-2"><a href="#cb10-2" tabindex="-1"></a><span class="fu">set.seed</span>(<span class="dv">1</span>)</span>
+<span id="cb10-3"><a href="#cb10-3" tabindex="-1"></a></span>
+<span id="cb10-4"><a href="#cb10-4" tabindex="-1"></a>n <span class="ot">&lt;-</span> <span class="dv">100</span></span>
+<span id="cb10-5"><a href="#cb10-5" tabindex="-1"></a>p <span class="ot">&lt;-</span> <span class="dv">10</span></span>
+<span id="cb10-6"><a href="#cb10-6" tabindex="-1"></a>q <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb10-7"><a href="#cb10-7" tabindex="-1"></a></span>
+<span id="cb10-8"><a href="#cb10-8" tabindex="-1"></a>X <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> p), n, p)</span>
+<span id="cb10-9"><a href="#cb10-9" tabindex="-1"></a>Z <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="fu">rnorm</span>(n <span class="sc">*</span> q), n, q)</span>
+<span id="cb10-10"><a href="#cb10-10" tabindex="-1"></a></span>
+<span id="cb10-11"><a href="#cb10-11" tabindex="-1"></a>beta_true  <span class="ot">&lt;-</span> <span class="fu">c</span>(<span class="dv">2</span>, <span class="sc">-</span><span class="dv">2</span>, <span class="dv">0</span>, <span class="dv">2</span>, <span class="fu">rep</span>(<span class="dv">0</span>, p <span class="sc">-</span> <span class="dv">4</span>)) <span class="sc">/</span> <span class="dv">4</span></span>
+<span id="cb10-12"><a href="#cb10-12" tabindex="-1"></a>theta_true <span class="ot">&lt;-</span> <span class="fu">matrix</span>(<span class="dv">0</span>, p, q)</span>
+<span id="cb10-13"><a href="#cb10-13" tabindex="-1"></a>theta_true[<span class="dv">1</span><span class="sc">:</span><span class="dv">2</span>, ] <span class="ot">&lt;-</span> <span class="fu">matrix</span>(</span>
+<span id="cb10-14"><a href="#cb10-14" tabindex="-1"></a>  <span class="fu">c</span>(<span class="fu">rep</span>(<span class="dv">1</span>, q),</span>
+<span id="cb10-15"><a href="#cb10-15" tabindex="-1"></a>    <span class="fu">rep</span>(<span class="sc">-</span><span class="dv">2</span>, q),</span>
+<span id="cb10-16"><a href="#cb10-16" tabindex="-1"></a>    <span class="fu">c</span>(<span class="dv">1</span><span class="sc">:</span>q)),</span>
+<span id="cb10-17"><a href="#cb10-17" tabindex="-1"></a>  <span class="dv">2</span>, q, <span class="at">byrow =</span> <span class="cn">TRUE</span></span>
+<span id="cb10-18"><a href="#cb10-18" tabindex="-1"></a>) <span class="sc">/</span> <span class="dv">4</span></span>
+<span id="cb10-19"><a href="#cb10-19" tabindex="-1"></a></span>
+<span id="cb10-20"><a href="#cb10-20" tabindex="-1"></a>theta0_true <span class="ot">&lt;-</span> <span class="fu">rep</span>(<span class="fl">0.5</span>, q)</span>
+<span id="cb10-21"><a href="#cb10-21" tabindex="-1"></a>beta0_true  <span class="ot">&lt;-</span> <span class="dv">2</span></span>
+<span id="cb10-22"><a href="#cb10-22" tabindex="-1"></a></span>
+<span id="cb10-23"><a href="#cb10-23" tabindex="-1"></a>eta <span class="ot">&lt;-</span> beta0_true <span class="sc">+</span></span>
+<span id="cb10-24"><a href="#cb10-24" tabindex="-1"></a>       Z <span class="sc">%*%</span> theta0_true <span class="sc">+</span></span>
+<span id="cb10-25"><a href="#cb10-25" tabindex="-1"></a>       <span class="fu">rowSums</span>(<span class="fu">sapply</span>(<span class="dv">1</span><span class="sc">:</span>p, <span class="cf">function</span>(j)</span>
+<span id="cb10-26"><a href="#cb10-26" tabindex="-1"></a>         X[, j] <span class="sc">*</span> (beta_true[j] <span class="sc">+</span> Z <span class="sc">%*%</span> theta_true[j, ])</span>
+<span id="cb10-27"><a href="#cb10-27" tabindex="-1"></a>       ))</span>
+<span id="cb10-28"><a href="#cb10-28" tabindex="-1"></a></span>
+<span id="cb10-29"><a href="#cb10-29" tabindex="-1"></a>y <span class="ot">&lt;-</span> <span class="fu">rpois</span>(n, <span class="at">lambda =</span> <span class="fu">exp</span>(eta))</span></code></pre></div>
+<div id="fit-the-poisson-pliable-model" class="section level3">
+<h3>Fit the Poisson pliable model</h3>
+<div class="sourceCode" id="cb11"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb11-1"><a href="#cb11-1" tabindex="-1"></a>fit <span class="ot">&lt;-</span> <span class="fu">pliable_HS_poisson</span>(y, X, Z,</span>
+<span id="cb11-2"><a href="#cb11-2" tabindex="-1"></a>                          <span class="at">n_iter =</span> <span class="dv">5000</span><span class="dt">L</span>,</span>
+<span id="cb11-3"><a href="#cb11-3" tabindex="-1"></a>                          <span class="at">burn_in =</span> <span class="dv">1000</span><span class="dt">L</span>,</span>
+<span id="cb11-4"><a href="#cb11-4" tabindex="-1"></a>                          <span class="at">verbose =</span> <span class="cn">TRUE</span>)</span></code></pre></div>
+<p>Posterior means:</p>
+<div class="sourceCode" id="cb12"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb12-1"><a href="#cb12-1" tabindex="-1"></a><span class="fu">colMeans</span>(fit<span class="sc">$</span>beta)</span>
+<span id="cb12-2"><a href="#cb12-2" tabindex="-1"></a>beta_true</span>
+<span id="cb12-3"><a href="#cb12-3" tabindex="-1"></a></span>
+<span id="cb12-4"><a href="#cb12-4" tabindex="-1"></a><span class="fu">apply</span>(fit<span class="sc">$</span>theta, <span class="fu">c</span>(<span class="dv">2</span>, <span class="dv">3</span>), mean)</span></code></pre></div>
+<hr />
+</div>
+</div>
+<div id="summary" class="section level1">
+<h1>Summary</h1>
+<p>The <strong><code>hspliable</code></strong> package provides:</p>
+<ul>
+<li>Bayesian estimation of sparse pliable regression models</li>
+<li>Horseshoe priors for enhanced shrinkage</li>
+<li>Unified handling of <strong>Gaussian</strong>,
+<strong>Logistic</strong>, and <strong>Poisson</strong> responses</li>
+<li>Support for <strong>missing Y values</strong></li>
+<li>Efficient C++ implementations for scalable MCMC sampling</li>
+</ul>
+<p>This vignette demonstrated the essential workflow for fitting pliable
+models and extracting posterior summaries.</p>
+<p>For additional details or feature requests, please visit: <strong><a href="https://github.com/tienmt/hspliable">https://github.com/tienmt/hspliable</a></strong></p>
+<hr />
+</div>
+<div id="session-info" class="section level1">
+<h1>Session Info</h1>
+<div class="sourceCode" id="cb13"><pre class="sourceCode r"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" tabindex="-1"></a><span class="fu">sessionInfo</span>()</span>
+<span id="cb13-2"><a href="#cb13-2" tabindex="-1"></a><span class="co">#&gt; R version 4.5.1 (2025-06-13)</span></span>
+<span id="cb13-3"><a href="#cb13-3" tabindex="-1"></a><span class="co">#&gt; Platform: aarch64-apple-darwin20</span></span>
+<span id="cb13-4"><a href="#cb13-4" tabindex="-1"></a><span class="co">#&gt; Running under: macOS Sequoia 15.7.1</span></span>
+<span id="cb13-5"><a href="#cb13-5" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-6"><a href="#cb13-6" tabindex="-1"></a><span class="co">#&gt; Matrix products: default</span></span>
+<span id="cb13-7"><a href="#cb13-7" tabindex="-1"></a><span class="co">#&gt; BLAS:   /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRblas.0.dylib </span></span>
+<span id="cb13-8"><a href="#cb13-8" tabindex="-1"></a><span class="co">#&gt; LAPACK: /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/lib/libRlapack.dylib;  LAPACK version 3.12.1</span></span>
+<span id="cb13-9"><a href="#cb13-9" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-10"><a href="#cb13-10" tabindex="-1"></a><span class="co">#&gt; locale:</span></span>
+<span id="cb13-11"><a href="#cb13-11" tabindex="-1"></a><span class="co">#&gt; [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8</span></span>
+<span id="cb13-12"><a href="#cb13-12" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-13"><a href="#cb13-13" tabindex="-1"></a><span class="co">#&gt; time zone: Europe/Oslo</span></span>
+<span id="cb13-14"><a href="#cb13-14" tabindex="-1"></a><span class="co">#&gt; tzcode source: internal</span></span>
+<span id="cb13-15"><a href="#cb13-15" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-16"><a href="#cb13-16" tabindex="-1"></a><span class="co">#&gt; attached base packages:</span></span>
+<span id="cb13-17"><a href="#cb13-17" tabindex="-1"></a><span class="co">#&gt; [1] stats     graphics  grDevices utils     datasets  methods   base     </span></span>
+<span id="cb13-18"><a href="#cb13-18" tabindex="-1"></a><span class="co">#&gt; </span></span>
+<span id="cb13-19"><a href="#cb13-19" tabindex="-1"></a><span class="co">#&gt; loaded via a namespace (and not attached):</span></span>
+<span id="cb13-20"><a href="#cb13-20" tabindex="-1"></a><span class="co">#&gt;  [1] digest_0.6.37     R6_2.6.1          fastmap_1.2.0     xfun_0.52        </span></span>
+<span id="cb13-21"><a href="#cb13-21" tabindex="-1"></a><span class="co">#&gt;  [5] cachem_1.1.0      knitr_1.50        htmltools_0.5.8.1 rmarkdown_2.29   </span></span>
+<span id="cb13-22"><a href="#cb13-22" tabindex="-1"></a><span class="co">#&gt;  [9] lifecycle_1.0.4   cli_3.6.5         sass_0.4.10       jquerylib_0.1.4  </span></span>
+<span id="cb13-23"><a href="#cb13-23" tabindex="-1"></a><span class="co">#&gt; [13] compiler_4.5.1    rstudioapi_0.17.1 tools_4.5.1       evaluate_1.0.4   </span></span>
+<span id="cb13-24"><a href="#cb13-24" tabindex="-1"></a><span class="co">#&gt; [17] bslib_0.9.0       yaml_2.3.10       rlang_1.1.6       jsonlite_2.0.0</span></span></code></pre></div>
+<p>```</p>
+</div>
+
+
+
+<!-- code folding -->
+
+
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+  (function () {
+    var script = document.createElement("script");
+    script.type = "text/javascript";
+    script.src  = "https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML";
+    document.getElementsByTagName("head")[0].appendChild(script);
+  })();
+</script>
+
+</body>
+</html>
