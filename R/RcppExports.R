@@ -9,3 +9,7 @@ gibbs_pliable_lasso_missing_cpp <- function(y_in, X, Z, n_iter = 2000L, burn_in 
     .Call('_hspliable_gibbs_pliable_lasso_missing_cpp', PACKAGE = 'hspliable', y_in, X, Z, n_iter, burn_in, a0, b0, sigma0_sq, eps, verbose, seed)
 }
 
+gibbs_pliable_lasso_poisson_rcpp <- function(y_in, X, Z, n_iter = 2000L, burn_in = 1000L, sigma0_sq = 1.0, eps = 1e-6, clamp_min = 1e-6, clamp_max = 1e5, verbose = TRUE) {
+    .Call('_hspliable_gibbs_pliable_lasso_poisson_rcpp', PACKAGE = 'hspliable', y_in, X, Z, n_iter, burn_in, sigma0_sq, eps, clamp_min, clamp_max, verbose)
+}
+

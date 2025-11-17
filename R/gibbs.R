@@ -199,3 +199,111 @@ pliable_HS_logistic <- function(y,
                                      clamp_max = 1e10,
                                      verbose = TRUE)
   }
+
+
+
+
+
+
+
+#' Gibbs sampler for Poisson pliable lasso regression model with (Group) Horseshoe Prior
+#'
+#' This function implements a Gibbs sampler for a Poisson regression model with
+#' pliable-lasso structure and a group horseshoe prior on the main + modifier groups.
+#' It is written in Rcpp and uses \pkg{RcppArmadillo} for efficiency.
+#'
+#' @param y Numeric vector of count outcomes of length \eqn{n} (non-negative integers).
+#' @param X Numeric matrix of predictors of dimension \eqn{n \times p}.
+#' @param Z Numeric matrix of modifying variables of dimension \eqn{n \times q}.
+#'   Must have the same number of rows as \code{X}.
+#' @param n_iter Integer. Total number of Gibbs iterations. Default is 2000.
+#' @param burn_in Integer. Number of burn-in iterations discarded from the
+#'   beginning of the chain. Default is 1000.
+#' @param sigma0_sq Prior variance for the intercept (scalar). Default is 1.0.
+#' @param eps Small ridge term added for numerical stability in matrix inversions.
+#'   Default is 1e-6.
+#' @param clamp_min Minimum allowed value for local/global shrinkage parameters
+#'   (\eqn{\lambda^2}, \eqn{\tau^2}). Default is 1e-10.
+#' @param clamp_max Maximum allowed value for local/global shrinkage parameters.
+#'   Default is 1e10.
+#' @param verbose Logical. If \code{TRUE}, prints progress messages.
+#'
+#' @author The Tien Mai, \email{the.tien.mai@@fhi.no}
+#'
+#' @details
+#' The Poisson pliable-lasso regression model uses a log link:
+#' \deqn{ \log(\lambda_i) = \beta_0 + Z_i^\top \theta_0
+#'       + \sum_{j=1}^p X_{ij} \big( \beta_j + Z_i^\top \theta_j \big), }
+#' where \eqn{\lambda_i = E[y_i | X_i, Z_i]} and \eqn{\beta_j} are the main effects,
+#' \eqn{\theta_j} are modifier effects (a q-vector per predictor), and
+#' \eqn{\theta_0} is the intercept modifier vector.
+#'
+#' The groups \eqn{(\beta_j, \theta_j)} are assigned a group horseshoe prior:
+#' \deqn{ (\beta_j, \theta_j) \sim \mathcal{N}\left(0, \tau^2 \lambda_j^2 I\right), }
+#' together with the usual half-Cauchy/inverse-gamma parameterization for the
+#' local scales \eqn{\lambda_j^2} and global scale \eqn{\tau^2}.
+#'
+#' Posterior inference is performed via Gibbs sampling implemented in C++ for speed.
+#'
+#' @return A list with elements:
+#' \item{beta0}{Posterior samples of the intercept \eqn{\beta_0}.}
+#' \item{theta0}{Posterior samples of the intercept modifier vector \eqn{\theta_0}.}
+#' \item{beta}{Posterior samples of main effects \eqn{\beta_j} (saved iterations \times p).}
+#' \item{theta}{Posterior samples of modifier effects \eqn{\theta_j}, array with dimensions
+#'   (saved iterations, p, q).}
+#' \item{tau2}{Posterior samples of the global scale parameter \eqn{\tau^2}.}
+#' \item{lambda2}{Posterior samples of local scale parameters \eqn{\lambda_j^2} (saved iterations \times p).}
+#' \item{config}{List of configuration parameters used in the run.}
+#'
+#' @references
+#' - Mai. T.T. (2025). Bayesian Pliable Lasso with Horseshoe Prior for Interaction Effects in GLMs with Missing Responses. arXiv
+#'
+#' @examples
+#' \dontrun{
+#' set.seed(123)
+#' n <- 100
+#' p <- 10
+#' q <- 2
+#' X <- matrix(rnorm(n * p), n, p)
+#' Z <- matrix(rnorm(n * q), n, q)
+#' beta_true <- c(2, -2, 0, 2, rep(0, p - 4)) / 4
+#' theta_true <- matrix(0, p, q)
+#' theta_true[1:3, ] <- matrix(c(rep(1, q), rep(-2, q), c(1:q)), 3, q, byrow = TRUE) / 4
+#' theta0_true <- rep(0.5, q)
+#' beta0_true <- 2
+#' # linear predictor and counts
+#' eta <- beta0_true + Z %*% theta0_true + rowSums(sapply(1:p, function(j) X[, j] * (beta_true[j] + Z %*% theta_true[j, ])))
+#' y <- rpois(n, lambda = exp(eta))
+#'
+#' fit <- pliable_HS_poisson(y, X, Z, n_iter = 5000L, burn_in = 1000L, verbose = TRUE)
+#' colMeans(fit$beta)
+#' apply(fit$theta, c(2, 3), mean)
+#' }
+#'
+#' @export
+#' @useDynLib hspliable
+#' @importFrom Rcpp sourceCpp
+pliable_HS_poisson <- function(y,
+                               X,
+                               Z,
+                               n_iter = 2000L,
+                               burn_in = 1000L,
+                               sigma0_sq = 1.0,
+                               eps = 1e-6,
+                               clamp_min = 1e-10,
+                               clamp_max = 1e10,
+                               verbose = TRUE) {
+  # Forward the actual function arguments to the compiled routine
+  gibbs_pliable_lasso_poisson_rcpp(
+    y = y,
+    X = X,
+    Z = Z,
+    n_iter = as.integer(n_iter),
+    burn_in = as.integer(burn_in),
+    sigma0_sq = sigma0_sq,
+    eps = eps,
+    clamp_min = clamp_min,
+    clamp_max = clamp_max,
+    verbose = verbose
+  )
+}
