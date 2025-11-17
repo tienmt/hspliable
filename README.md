@@ -59,7 +59,7 @@ theta_true
 
 
 ```
-## Logistic sparse pliable model for sparse interaction effec
+## Logistic pliable model for sparse interaction effect
 ```r
 library(hspliable)
 ntest <- 500
@@ -96,6 +96,29 @@ cat('Mean squared error of beta =', sum( ( b_pHS_cpp - beta_true)^2 ) )
 cat('Mean squared error of theta =', sum( ( theta_pHS- theta_true)^2 ))
 
 
+```
+## Poisson pliable model for sparse interaction effect
+```r
+
+library(hspliable)
+set.seed(1)
+n <- 100
+p <- 10
+q <- 2
+X <- matrix(rnorm(n * p), n, p)
+Z <- matrix(rnorm(n * q), n, q)
+beta_true <- c(2, -2, 0, 2, rep(0, p - 4)) / 4
+theta_true <- matrix(0, p, q)
+theta_true[1:2, ] <- matrix(c(rep(1, q), rep(-2, q), c(1:q)), 2, q, byrow = TRUE) / 4
+theta0_true <- rep(0.5, q)
+beta0_true <- 2
+# linear predictor and counts
+eta <- beta0_true + Z %*% theta0_true + rowSums(sapply(1:p, function(j) X[, j] * (beta_true[j] + Z %*% theta_true[j, ])))
+y <- rpois(n, lambda = exp(eta))
+
+fit <- pliable_HS_poisson(y, X, Z, n_iter = 5000L, burn_in = 1000L, verbose = TRUE)
+colMeans(fit$beta) ; beta_true
+apply(fit$theta, c(2, 3), mean)
 
 
 
