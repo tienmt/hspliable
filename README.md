@@ -32,7 +32,7 @@ devtools::install_github(
 
 # Examples
 
-## Linear Sparse Pliable Model (Gaussian)
+### Linear Sparse Pliable Model (Gaussian)
 
 <details>
 <summary>Click to expand</summary>
@@ -83,7 +83,7 @@ theta_true
 
 ---
 
-## Logistic Sparse Pliable Model
+### Logistic Sparse Pliable Model
 
 <details>
 <summary>Click to expand</summary>
@@ -135,7 +135,7 @@ cat("MSE theta =", sum((theta_est - theta_true)^2), "\n")
 
 ---
 
-## Poisson Sparse Pliable Model
+### Poisson Sparse Pliable Model
 
 <details>
 <summary>Click to expand</summary>
