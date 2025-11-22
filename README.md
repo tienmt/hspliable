@@ -22,6 +22,8 @@ devtools::install_github(
     build_opts = c("--no-resave-data", "--no-manual")
 )
 ```
+
+</details>
 ## Linear sparse pliable model example
 <details>
 
@@ -110,8 +112,9 @@ cat('Mean squared error of beta =', sum( ( b_pHS_cpp - beta_true)^2 ) )
 
 cat('Mean squared error of theta =', sum( ( theta_pHS- theta_true)^2 ))
 
-
 ```
+</details>
+
 ## Poisson pliable model for sparse interaction effect
 <details>
 
