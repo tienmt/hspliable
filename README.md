@@ -26,6 +26,7 @@ devtools::install_github(
 <details>
 
 <summary>Gaussian Linear sparse pliable model example</summary>
+
 ```r
 library(hspliable)
 
@@ -70,6 +71,10 @@ theta_true
 
 ```
 ## Logistic pliable model for sparse interaction effect
+<details>
+
+<summary>Logistic sparse pliable model example</summary>
+
 ```r
 library(hspliable)
 ntest <- 500
@@ -108,6 +113,10 @@ cat('Mean squared error of theta =', sum( ( theta_pHS- theta_true)^2 ))
 
 ```
 ## Poisson pliable model for sparse interaction effect
+<details>
+
+<summary>Poisson sparse pliable model example</summary>
+
 ```r
 
 library(hspliable)
