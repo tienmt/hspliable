@@ -23,6 +23,9 @@ devtools::install_github(
 )
 ```
 ## Linear sparse pliable model example
+<details>
+
+<summary>Gaussian Linear sparse pliable model example</summary>
 ```r
 library(hspliable)
 
