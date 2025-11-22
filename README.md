@@ -23,7 +23,7 @@ devtools::install_github(
 )
 ```
 
-</details>
+
 
 ## Linear sparse pliable model example
 <details>
