@@ -310,3 +310,409 @@ pliable_HS_poisson <- function(y,
     verbose = verbose
   )
 }
+
+
+
+
+
+
+
+
+
+#' Gibbs Sampler for the Bayesian Pliable Lasso with Sparse Interactions
+#' for Gamma regression with possitive response (with missing data)
+#'
+#'
+#' @param y Numeric POSITIVE response vector of length \eqn{n}. May include \code{NA}
+#'   values, which will be imputed during sampling. Must satisfy \eqn{y_i > 0}
+#'   for observed entries.
+#' @param X Numeric \eqn{n \times p} predictor matrix.
+#' @param Z Optional moderator matrix (\eqn{n \times q}). Interaction terms
+#'   are created as \eqn{x_j * Z[,k]}.
+#'
+#' @param niter Total number of MCMC iterations.
+#' @param burnin Number of burn-in iterations.
+#' @param thin Thinning factor.
+#'
+#' @param b0_intercept Prior mean vector for the intercept block (confounder)
+#'   \eqn{(\beta_0, \theta_0)}. Defaults to zero.
+#' @param V0_intercept Prior covariance matrix for the intercept block (confounder).
+#' @param a_tau, Shape/rate hyperparameters for the log-normal precision
+#' @param b_tau Shape/rate hyperparameters for the log-normal precision
+#'   \eqn{\tau_{\text{obs}}}.
+#' @param sigma0_sq Prior variance for each component of the intercept block.
+#'
+#' @param tau2_init Initial global horseshoe scale squared.
+#' @param beta_init Optional list containing initial values
+#'   \code{beta0}, \code{theta0}, \code{beta}, \code{theta}.
+#'
+#' @param verbose Logical; print progress messages. Default is TRUE.
+#' @param seed Optional random seed.
+#'
+#' @param eps Small diagonal ridge to stabilise inversions.
+#' @param bound_k_min Lower bound on the Gamma shape estimator.
+#'
+#' @param save_imputed Logical; whether to store imputed missing \eqn{y}. Default is FALSE.
+#' @param save_imputed_every Save imputed values every \eqn{m}-th saved iteration.
+#'
+#' @description
+#' Implements a full Gibbs sampler for the Pliable Lasso model with
+#' \strong{group horseshoe priors} on each interaction block.
+#' The response is assumed to follow a positive distribution:
+#'
+#' \deqn{ Y_i \sim \mathcal{G}amma( \alpha , \alpha/ \eta_i). }
+#'
+#' The predictor structure is
+#'
+#' \deqn{
+#' \eta_i = \beta_0 + Z_i^\top \theta_0 +
+#'          \sum_{j=1}^p x_{ij} \left( \beta_j + Z_i^\top \theta_j \right).
+#' }
+#'
+#' Each block \eqn{\gamma_j = (\beta_j, \theta_j)} has dimension
+#' \eqn{d = 1 + q} and follows a group horseshoe prior:
+#'
+#' \deqn{
+#' \gamma_j \mid \lambda_j^2, \tau^2 \sim
+#'  \mathcal{N}_d\left(0, \tau^2 \lambda_j^2 I_d\right),
+#' }
+#'
+#' with hierarchical horseshoe hyperpriors, half-Cauchy, on
+#' the local scales \eqn{\lambda_j^2} and the global scale \eqn{\tau^2}.
+#'
+#' Missing \eqn{y_i} are imputed during sampling using the log-normal model.
+#'
+#' This sampler uses \code{MASS::mvrnorm()}, block-wise updates, and a
+#' method-of-moments plug-in estimator for the implied Gamma shape parameter.
+#'
+#' @return A list with elements:
+#' \describe{
+#'   \item{beta0}{Posterior draws of \eqn{\beta_0}.}
+#'   \item{theta0}{Posterior draws of \eqn{\theta_0}.}
+#'   \item{beta}{Posterior draws of the \eqn{\beta_j}.}
+#'   \item{theta}{Posterior draws of the interaction coefficients
+#'                \eqn{\theta_{jk}}.}
+#'   \item{tau_obs}{Posterior draws of the log-normal precision.}
+#'   \item{tau2}{Posterior draws of the global horseshoe scale.}
+#'   \item{k_hat}{Estimated Gamma shape parameter per iteration.}
+#'   \item{lambda2, nu, xi}{Final values of horseshoe hyperparameters.}
+#'   \item{config}{List containing run configuration.}
+#'   \item{imputation}{List containing imputed missing values (if requested).}
+#' }
+#'
+#'
+#' @details
+#' This sampler implements:
+#'
+#' * Block normal updates for each \eqn{\gamma_j}
+#' * Full conditional update for the intercept block
+#' * Horseshoe hierarchy using standard inverse-gamma augmentation
+#' * Missing data imputation using the log-normal model
+#' * Plug-in moment-based update for the Gamma shape parameter \eqn{k}
+#'
+#' The algorithm is stable for moderately high dimensions, as all updates
+#' are conjugate and use Cholesky-based inverses.
+#'
+#'
+#' @author The Tien Mai, \email{the.tien.mai@@fhi.no}
+#' @references
+#' - Tibshirani, R., & Friedman, J. (2020). A pliable lasso. *Journal of Computational and Graphical Statistics, 29*(1), 215-225.
+#' - Mai. T.T. (2025). Bayesian Pliable Lasso with Horseshoe Prior for Interaction Effects in GLMs with Missing Responses. arXiv
+#'
+#' @examples
+#' \dontrun{
+#'
+#'ntest <- 500
+#'n <- 100
+#'p <- 110
+#'q <- 2
+#'xx <- matrix(rnorm((n + ntest) * p), (n + ntest), p)
+#'X <- xx[1:n, ]
+#'xtest <- xx[-(1:n), ]
+#'zz <- matrix(rnorm((n + ntest) * q), (n + ntest), q)
+#'Z <- zz[1:n, ]
+#'ztest <- zz[-(1:n), ]
+#'beta_true <- c( .5,-2, 2, .5 , rep(0, p-4))
+#'theta_true <- matrix(0, p, q)
+#'theta_true[1:3, ] <- matrix( c(rep(1,q),
+#'                               rep(-2,q),
+#'                               c(1:q)) , 3, q, byrow = TRUE)
+#'theta0_true = 0.5
+#'beta0_true = 2
+#'my_mu <- beta0_true + zz %*% rep(theta0_true, q) +
+#'  rowSums(sapply(1:p, function(j) xx[, j] * (beta_true[j] + zz %*% theta_true[j, ] )))
+#'mu_true <- exp(my_mu)
+#'
+#'k_true <- 2.0
+#'yy <- rgamma(n, shape = k_true, scale = mu_true / k_true)
+#'y <- yy[1:n]
+#'
+#'out_gibbs_HS <- gibbs_gamma_pliable_lognormal(y, X, Z ,
+#'                                              niter = 8000, burnin = 1000, thin = 2,
+#'                                              b0 = rep(0, 1 + q), V0 = diag(10, 1 + q),
+#'                                              a_tau = 1, b_tau = 0.01,
+#'                                              verbose = T, seed = 123)
+#'round( colMeans(out_gibbs_HS$beta)[1:5], 3)
+#'summary( out_gibbs_HS$k_hat )
+#'sum( (  colMeans(out_gibbs_HS$beta) - beta_true )^2)
+#'round( apply(out_gibbs_HS$theta, c(2,3), mean )[1:5,], 3)
+#'theta_true[1:3,]
+#'
+#' # Fit with missing data
+#'y_na = y
+#'y_na[ sample(1:n, n*0.3) ] <- NA
+#'library(tictoc); tic()
+#'out_gibbs_HS <- gibbs_gamma_pliable_lognormal(y_na, X, Z ,
+#'                                              niter = 5000, burnin = 1000, thin = 2,
+#'                                              b0 = rep(0, 1 + q), V0 = diag(10, 1 + q),
+#'                                              a_tau = 1, b_tau = 0.01,
+#'                                              verbose = T, seed = 123)  ; toc()
+#'round( colMeans(out_gibbs_HS$beta)[1:5], 3)
+#'summary( out_gibbs_HS$k_hat )
+#'sum( (  colMeans(out_gibbs_HS$beta) - beta_true )^2)
+#'round( apply(out_gibbs_HS$theta, c(2,3), mean )[1:5,], 3)
+#'theta_true[1:3,]
+#'
+#' }
+#'
+#' @export
+pliable_HS_gamma_reg <- function(
+    y, X, Z,
+    niter = 5000, burnin = 1000, thin = 1,
+    b0_intercept = NULL, V0_intercept = NULL,
+    a_tau = 1.0, b_tau = 1e-2,
+    sigma0_sq = 1.0,
+    tau2_init = 1.0, prop = list(),
+    beta_init = NULL,
+    verbose = TRUE, seed = NULL,
+    eps = 1e-8,
+    bound_k_min = 1e-3,
+    save_imputed = FALSE,
+    save_imputed_every = 1
+) {
+
+  # -----------------------------
+  # INITIAL CHECKS AND SETUP
+  # -----------------------------
+  if (!is.null(seed)) set.seed(seed)
+  if (any(!is.na(y) & y <= 0))
+    stop("Observed y must be positive for log-transform.")
+
+  `%||%` <- function(a, b) if (!is.null(a)) a else b
+
+  library(MASS)
+
+  n <- length(y)
+  X <- as.matrix(X)
+  Z <- as.matrix(Z)
+  p <- ncol(X)
+  q <- if (is.matrix(Z)) ncol(Z) else 0
+  d <- 1 + q
+
+  # Prior for intercept block
+  if (is.null(b0_intercept)) b0_intercept <- rep(0, d)
+  if (is.null(V0_intercept)) V0_intercept <- diag(sigma0_sq, d)
+  V0int_inv <- solve(V0_intercept)
+
+  # ---------------------------------
+  # INITIAL VALUES
+  # ---------------------------------
+  if (is.null(beta_init)) {
+    beta0 <- 0
+    theta0 <- if (q > 0) rep(0, q) else numeric(0)
+    beta   <- rep(0, p)
+    theta  <- if (q > 0) matrix(0, p, q) else matrix(0, p, 0)
+  } else {
+    beta0  <- beta_init$beta0  %||% 0
+    theta0 <- beta_init$theta0 %||% (if (q>0) rep(0,q) else numeric(0))
+    beta   <- beta_init$beta   %||% rep(0,p)
+    theta  <- beta_init$theta  %||% (if (q>0) matrix(0,p,q) else matrix(0,p,0))
+  }
+
+  # Horseshoe
+  lambda2 <- rep(1, p)
+  nu <- rep(1, p)
+  tau2 <- tau2_init
+  xi <- 1
+
+  rinv_gamma <- function(shape, rate) {
+    if (shape <= 0 || rate <= 0) return(1e6)
+    1 / rgamma(1, shape = shape, rate = rate)
+  }
+
+  # Storage
+  nit_out <- floor((niter - burnin)/thin)
+  if (nit_out < 1) stop("Not enough iterations after burnin.")
+
+  out_beta0 <- numeric(nit_out)
+  out_theta0 <- if (q>0) matrix(NA, nit_out, q) else NULL
+  out_beta <- matrix(NA, nit_out, p)
+  out_theta <- if (q>0) array(NA, c(nit_out, p, q)) else NULL
+  out_tau_obs <- numeric(nit_out)
+  out_tau2 <- numeric(nit_out)
+  out_k_hat <- numeric(nit_out)
+
+  # Missing data setup
+  miss_idx <- which(is.na(y))
+  n_miss <- length(miss_idx)
+  y_obs_orig <- y
+  y_work <- y
+
+  if (save_imputed && n_miss > 0) {
+    out_y_imputed <- matrix(NA, nit_out, n_miss)
+    colnames(out_y_imputed) <- paste0("idx_", miss_idx)
+  } else {
+    out_y_imputed <- NULL
+  }
+
+  # Precompute design matrices
+  W0 <- matrix(NA, n, d)
+  W0[, 1] <- 1
+  if (q > 0) W0[, 2:d] <- Z
+
+  Wj_list <- vector("list", p)
+  for (j in seq_len(p)) {
+    xj <- X[, j]
+    Wj <- matrix(NA, n, d)
+    Wj[, 1] <- xj
+    if (q>0)
+      Wj[, 2:d] <- sweep(Z, 1, xj, "*")
+    Wj_list[[j]] <- Wj
+  }
+
+  tau_obs <- 1
+
+  # ---------------------------------
+  # MCMC LOOP
+  # ---------------------------------
+  out_i <- 0
+
+  for (iter in seq_len(niter)) {
+
+    # ----- Linear predictor
+    base_lin <- as.numeric(W0 %*% c(beta0, theta0))
+    contrib <- matrix(0, n, p)
+    eta <- base_lin
+    for (j in seq_len(p)) {
+      gj <- c(beta[j], theta[j, ])
+      cj <- as.numeric(Wj_list[[j]] %*% gj)
+      contrib[, j] <- cj
+      eta <- eta + cj
+    }
+
+    # ----- Impute missing y
+    if (n_miss > 0) {
+      sigma2_curr <- 1 / tau_obs
+      logy_miss <- rnorm(n_miss,
+                         mean = eta[miss_idx],
+                         sd = sqrt(sigma2_curr))
+      y_work[miss_idx] <- pmax(exp(logy_miss), .Machine$double.xmin)
+    }
+    y_work[!is.na(y_obs_orig)] <- y_obs_orig[!is.na(y_obs_orig)]
+    ylog <- log(y_work)
+
+    # ----- Update intercept block
+    resid0 <- ylog - rowSums(contrib)
+    prec0 <- tau_obs * crossprod(W0) + V0int_inv + diag(eps, d)
+    Sigma0 <- chol2inv(chol(prec0))
+    mu0 <- Sigma0 %*% (tau_obs * crossprod(W0, resid0) + V0int_inv %*% b0_intercept)
+    draw0 <- mu0 + chol(Sigma0) %*% rnorm(d)
+    beta0 <- draw0[1]
+    if (q>0) theta0 <- draw0[-1]
+
+    # ----- Update each gamma_j block
+    for (j in seq_len(p)) {
+      Wj <- Wj_list[[j]]
+      resid_j <- ylog - (base_lin + rowSums(contrib) - contrib[, j])
+      prior_prec <- diag(1/(tau2*lambda2[j]), d)
+      precj <- tau_obs * crossprod(Wj) + prior_prec + diag(eps, d)
+      Sigma_j <- chol2inv(chol(precj))
+      mu_j <- Sigma_j %*% (tau_obs * crossprod(Wj, resid_j))
+      draw_j <- mu_j + chol(Sigma_j) %*% rnorm(d)
+      beta[j] <- draw_j[1]
+      if (q>0) theta[j, ] <- draw_j[-1]
+      contrib[, j] <- as.numeric(Wj %*% draw_j)
+    }
+
+    eta <- base_lin + rowSums(contrib)
+
+    # ----- Update tau_obs (precision)
+    resid_all <- ylog - eta
+    tau_obs <- rgamma(1,
+                      a_tau + n/2,
+                      b_tau + sum(resid_all^2)/2)
+
+    # ----- Horseshoe local scales
+    for (j in seq_len(p)) {
+      gj <- c(beta[j], theta[j, ])
+      g2 <- sum(gj^2)
+      lambda2[j] <- rinv_gamma((d + 1)/2, 1/nu[j] + g2/(2*tau2))
+      lambda2[j] <- max(lambda2[j], 1e-12)
+      nu[j] <- rinv_gamma(0.5, 1 + 1/lambda2[j])
+      nu[j] <- max(nu[j], 1e-12)
+    }
+
+    # ----- Horseshoe global scale
+    total <- 0
+    for (j in seq_len(p)) {
+      gj <- c(beta[j], theta[j, ])
+      total <- total + sum(gj^2)/lambda2[j]
+    }
+    tau2 <- rinv_gamma((p*d + 1)/2, 1/xi + total/2)
+    tau2 <- max(tau2, 1e-12)
+    xi <- rinv_gamma(0.5, 1 + 1/tau2)
+    xi <- max(xi, 1e-12)
+
+    # ----- Plug-in Gamma shape estimator
+    sigma2 <- 1/tau_obs
+    mu_hat <- exp(eta + sigma2/2)
+    denom <- sum((y_work - mu_hat)^2)
+    if (denom <= 0) k_hat <- 1e4 else
+      k_hat <- max(sum(mu_hat^2) / denom, bound_k_min)
+
+    # ----- Save
+    if (iter > burnin && ((iter - burnin) %% thin == 0)) {
+      out_i <- out_i + 1
+      out_beta0[out_i] <- beta0
+      if (q>0) out_theta0[out_i, ] <- theta0
+      out_beta[out_i, ] <- beta
+      if (q>0) out_theta[out_i, , ] <- theta
+      out_tau_obs[out_i] <- tau_obs
+      out_tau2[out_i] <- tau2
+      out_k_hat[out_i] <- k_hat
+      if (save_imputed && n_miss > 0 &&
+          (out_i %% save_imputed_every == 0)) {
+        out_y_imputed[out_i, ] <- y_work[miss_idx]
+      }
+    }
+
+    if (verbose && iter %% max(1, niter%/%5) == 0) {
+      cat(sprintf("iter %d/%d (saved %d): tau_obs=%.3g tau2=%.3g min(lambda2)=%.3g k=%.3g\n",
+                  iter, niter, out_i,
+                  tau_obs, tau2, min(lambda2), k_hat))
+    }
+  }
+
+  # ---------------------------------
+  # Return
+  # ---------------------------------
+  list(
+    beta0 = out_beta0,
+    theta0 = out_theta0,
+    beta = out_beta,
+    theta = out_theta,
+    tau_obs = out_tau_obs,
+    tau2 = out_tau2,
+    lambda2 = lambda2,
+    nu = nu,
+    xi = xi,
+    k_hat = out_k_hat,
+    config = list(niter=niter, burnin=burnin, thin=thin, p=p, q=q, d=d),
+    imputation = list(
+      missing_idx = miss_idx,
+      n_miss = n_miss,
+      saved_imputations = out_y_imputed
+    )
+  )
+}
+
