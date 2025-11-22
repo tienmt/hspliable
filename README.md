@@ -24,6 +24,7 @@ devtools::install_github(
 ```
 
 </details>
+
 ## Linear sparse pliable model example
 <details>
 
@@ -72,6 +73,7 @@ theta_true
 
 
 ```
+
 ## Logistic pliable model for sparse interaction effect
 <details>
 
@@ -142,5 +144,8 @@ fit <- pliable_HS_poisson(y, X, Z, n_iter = 5000L, burn_in = 1000L, verbose = TR
 colMeans(fit$beta) ; beta_true
 apply(fit$theta, c(2, 3), mean)
 
+```
 
+
+</details>
 
