@@ -53,8 +53,8 @@ BEGIN_RCPP
 END_RCPP
 }
 // gibbs_pliable_lasso_poisson_rcpp
-Rcpp::List gibbs_pliable_lasso_poisson_rcpp(Rcpp::NumericVector y_in, const arma::mat& X, const arma::mat& Z, int n_iter, int burn_in, double sigma0_sq, double eps, double clamp_min, double clamp_max, bool verbose);
-RcppExport SEXP _hspliable_gibbs_pliable_lasso_poisson_rcpp(SEXP y_inSEXP, SEXP XSEXP, SEXP ZSEXP, SEXP n_iterSEXP, SEXP burn_inSEXP, SEXP sigma0_sqSEXP, SEXP epsSEXP, SEXP clamp_minSEXP, SEXP clamp_maxSEXP, SEXP verboseSEXP) {
+Rcpp::List gibbs_pliable_lasso_poisson_rcpp(Rcpp::NumericVector y_in, const arma::mat& X, const arma::mat& Z, int n_iter, int burn_in, double sigma0_sq, bool verbose, double a0, double b0, double init_sigma_u2);
+RcppExport SEXP _hspliable_gibbs_pliable_lasso_poisson_rcpp(SEXP y_inSEXP, SEXP XSEXP, SEXP ZSEXP, SEXP n_iterSEXP, SEXP burn_inSEXP, SEXP sigma0_sqSEXP, SEXP verboseSEXP, SEXP a0SEXP, SEXP b0SEXP, SEXP init_sigma_u2SEXP) {
 BEGIN_RCPP
     Rcpp::RObject rcpp_result_gen;
     Rcpp::RNGScope rcpp_rngScope_gen;
@@ -64,11 +64,11 @@ BEGIN_RCPP
     Rcpp::traits::input_parameter< int >::type n_iter(n_iterSEXP);
     Rcpp::traits::input_parameter< int >::type burn_in(burn_inSEXP);
     Rcpp::traits::input_parameter< double >::type sigma0_sq(sigma0_sqSEXP);
-    Rcpp::traits::input_parameter< double >::type eps(epsSEXP);
-    Rcpp::traits::input_parameter< double >::type clamp_min(clamp_minSEXP);
-    Rcpp::traits::input_parameter< double >::type clamp_max(clamp_maxSEXP);
     Rcpp::traits::input_parameter< bool >::type verbose(verboseSEXP);
-    rcpp_result_gen = Rcpp::wrap(gibbs_pliable_lasso_poisson_rcpp(y_in, X, Z, n_iter, burn_in, sigma0_sq, eps, clamp_min, clamp_max, verbose));
+    Rcpp::traits::input_parameter< double >::type a0(a0SEXP);
+    Rcpp::traits::input_parameter< double >::type b0(b0SEXP);
+    Rcpp::traits::input_parameter< double >::type init_sigma_u2(init_sigma_u2SEXP);
+    rcpp_result_gen = Rcpp::wrap(gibbs_pliable_lasso_poisson_rcpp(y_in, X, Z, n_iter, burn_in, sigma0_sq, verbose, a0, b0, init_sigma_u2));
     return rcpp_result_gen;
 END_RCPP
 }
