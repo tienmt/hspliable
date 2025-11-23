@@ -220,12 +220,6 @@ pliable_HS_logistic <- function(y,
 #' @param burn_in Integer. Number of burn-in iterations discarded from the
 #'   beginning of the chain. Default is 1000.
 #' @param sigma0_sq Prior variance for the intercept (scalar). Default is 1.0.
-#' @param eps Small ridge term added for numerical stability in matrix inversions.
-#'   Default is 1e-6.
-#' @param clamp_min Minimum allowed value for local/global shrinkage parameters
-#'   (\eqn{\lambda^2}, \eqn{\tau^2}). Default is 1e-10.
-#' @param clamp_max Maximum allowed value for local/global shrinkage parameters.
-#'   Default is 1e10.
 #' @param verbose Logical. If \code{TRUE}, prints progress messages.
 #'
 #' @author The Tien Mai, \email{the.tien.mai@@fhi.no}
@@ -260,17 +254,15 @@ pliable_HS_logistic <- function(y,
 #'
 #' @examples
 #' \dontrun{
-#' set.seed(1)
+#' set.seed(123)
 #' n <- 100
 #' p <- 10
 #' q <- 2
 #' X <- matrix(rnorm(n * p), n, p)
 #' Z <- matrix(rnorm(n * q), n, q)
-#'
 #' beta_true <- c(2, -2, 0, 2, rep(0, p - 4)) / 4
 #' theta_true <- matrix(0, p, q)
 #' theta_true[1:3, ] <- matrix(c(rep(1, q), rep(-2, q), c(1:q)), 3, q, byrow = TRUE) / 4
-#' 
 #' theta0_true <- rep(0.5, q)
 #' beta0_true <- 2
 #' # linear predictor and counts
@@ -292,9 +284,6 @@ pliable_HS_poisson <- function(y,
                                n_iter = 2000L,
                                burn_in = 1000L,
                                sigma0_sq = 1.0,
-                               eps = 1e-6,
-                               clamp_min = 1e-10,
-                               clamp_max = 1e10,
                                verbose = TRUE) {
   # Forward the actual function arguments to the compiled routine
   gibbs_pliable_lasso_poisson_rcpp(
@@ -304,14 +293,9 @@ pliable_HS_poisson <- function(y,
     n_iter = as.integer(n_iter),
     burn_in = as.integer(burn_in),
     sigma0_sq = sigma0_sq,
-    eps = eps,
-    clamp_min = clamp_min,
-    clamp_max = clamp_max,
     verbose = verbose
   )
 }
-
-
 
 
 
@@ -475,6 +459,7 @@ pliable_HS_poisson <- function(y,
 #'
 #' }
 #'
+#' @importFrom stats rgamma rnorm
 #' @export
 pliable_HS_gamma_reg <- function(
     y, X, Z,
@@ -482,7 +467,7 @@ pliable_HS_gamma_reg <- function(
     b0_intercept = NULL, V0_intercept = NULL,
     a_tau = 1.0, b_tau = 1e-2,
     sigma0_sq = 1.0,
-    tau2_init = 1.0, prop = list(),
+    tau2_init = 1.0,
     beta_init = NULL,
     verbose = TRUE, seed = NULL,
     eps = 1e-8,
@@ -500,7 +485,6 @@ pliable_HS_gamma_reg <- function(
 
   `%||%` <- function(a, b) if (!is.null(a)) a else b
 
-  library(MASS)
 
   n <- length(y)
   X <- as.matrix(X)
@@ -537,7 +521,7 @@ pliable_HS_gamma_reg <- function(
 
   rinv_gamma <- function(shape, rate) {
     if (shape <= 0 || rate <= 0) return(1e6)
-    1 / rgamma(1, shape = shape, rate = rate)
+    1 / stats::rgamma(1, shape = shape, rate = rate)
   }
 
   # Storage
@@ -715,4 +699,3 @@ pliable_HS_gamma_reg <- function(
     )
   )
 }
-
