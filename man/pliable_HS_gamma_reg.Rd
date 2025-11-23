@@ -18,7 +18,6 @@ pliable_HS_gamma_reg(
   b_tau = 0.01,
   sigma0_sq = 1,
   tau2_init = 1,
-  prop = list(),
   beta_init = NULL,
   verbose = TRUE,
   seed = NULL,

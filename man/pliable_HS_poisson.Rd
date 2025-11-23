@@ -11,9 +11,6 @@ pliable_HS_poisson(
   n_iter = 2000L,
   burn_in = 1000L,
   sigma0_sq = 1,
-  eps = 1e-06,
-  clamp_min = 1e-10,
-  clamp_max = 1e+10,
   verbose = TRUE
 )
 }
@@ -31,15 +28,6 @@ Must have the same number of rows as \code{X}.}
 beginning of the chain. Default is 1000.}
 
 \item{sigma0_sq}{Prior variance for the intercept (scalar). Default is 1.0.}
-
-\item{eps}{Small ridge term added for numerical stability in matrix inversions.
-Default is 1e-6.}
-
-\item{clamp_min}{Minimum allowed value for local/global shrinkage parameters
-(\eqn{\lambda^2}, \eqn{\tau^2}). Default is 1e-10.}
-
-\item{clamp_max}{Maximum allowed value for local/global shrinkage parameters.
-Default is 1e10.}
 
 \item{verbose}{Logical. If \code{TRUE}, prints progress messages.}
 }
@@ -76,7 +64,7 @@ Posterior inference is performed via Gibbs sampling implemented in C++ for speed
 }
 \examples{
 \dontrun{
-set.seed(1)
+set.seed(123)
 n <- 100
 p <- 10
 q <- 2
