@@ -1,3 +1,4 @@
+#include <R.h>
 #include <RcppArmadillo.h>
 // [[Rcpp::depends(RcppArmadillo)]]
 // Gibbs sampler for logistic pliable lasso with group horseshoe prior
