@@ -9,7 +9,7 @@ Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
 LinkingTo: Rcpp, RcppArmadillo
-Imports: Rcpp
+Imports: Rcpp, stats
 NeedsCompilation: yes
 Packaged: 2025-09-09 07:53:21 UTC; thmai
 Author: The Tien Mai [aut, cre]
