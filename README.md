@@ -171,10 +171,69 @@ fit <- pliable_HS_poisson(
 
 colMeans(fit$beta)
 beta_true
-
-apply(fit$theta, c(2, 3), mean)
 ```
 
 </details>
+
+---
+
+### Gamma Sparse Pliable Model
+
+<details>
+<summary>Click to expand</summary>
+
+```r
+library(hspliable)
+ntest <- 500
+n <- 100
+p <- 110
+q <- 2
+xx <- matrix(rnorm((n + ntest) * p), (n + ntest), p)
+X <- xx[1:n, ]
+xtest <- xx[-(1:n), ]
+zz <- matrix(rnorm((n + ntest) * q), (n + ntest), q)
+Z <- zz[1:n, ]
+ztest <- zz[-(1:n), ]
+beta_true <- c( .5,-2, 2, .5 , rep(0, p-4))
+theta_true <- matrix(0, p, q)
+theta_true[1:3, ] <- matrix( c(rep(1,q),
+                               rep(-2,q),
+                               c(1:q)) , 3, q, byrow = TRUE)
+theta0_true = 0.5
+beta0_true = 2
+my_mu <- beta0_true + zz %*% rep(theta0_true, q) +
+  rowSums(sapply(1:p, function(j) xx[, j] * (beta_true[j] + zz %*% theta_true[j, ] )))
+mu_true <- exp(my_mu)
+
+k_true <- 2.0
+yy <- rgamma(n, shape = k_true, scale = mu_true / k_true)
+y <- yy[1:n]
+
+out_gibbs_HS <- pliable_HS_gamma_reg (y, X, Z ,
+                                              niter = 8000, burnin = 1000, thin = 2,
+                                              b0 = rep(0, 1 + q), V0 = diag(10, 1 + q),
+                                              a_tau = 1, b_tau = 0.01,
+                                              verbose = T, seed = 123)
+round( colMeans(out_gibbs_HS$beta)[1:5], 3)
+summary( out_gibbs_HS$k_hat )
+sum( (  colMeans(out_gibbs_HS$beta) - beta_true )^2)
+round( apply(out_gibbs_HS$theta, c(2,3), mean )[1:5,], 3)
+theta_true[1:3,]
+
+# Fit with missing data
+y_na = y
+y_na[ sample(1:n, n*0.3) ] <- NA
+library(tictoc); tic()
+out_gibbs_HS <- pliable_HS_gamma_reg(y_na, X, Z ,
+                                              niter = 5000, burnin = 1000, thin = 2,
+                                              b0 = rep(0, 1 + q), V0 = diag(10, 1 + q),
+                                              a_tau = 1, b_tau = 0.01,
+                                              verbose = T, seed = 123)  ; toc()
+round( colMeans(out_gibbs_HS$beta)[1:5], 3)
+summary( out_gibbs_HS$k_hat )
+sum( (  colMeans(out_gibbs_HS$beta) - beta_true )^2)
+round( apply(out_gibbs_HS$theta, c(2,3), mean )[1:5,], 3)
+theta_true[1:3,]
+
 
 
