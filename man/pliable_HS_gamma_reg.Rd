@@ -159,7 +159,7 @@ k_true <- 2.0
 yy <- rgamma(n, shape = k_true, scale = mu_true / k_true)
 y <- yy[1:n]
 
-out_gibbs_HS <- gibbs_gamma_pliable_lognormal(y, X, Z ,
+out_gibbs_HS <- pliable_HS_gamma_reg(y, X, Z ,
                                              niter = 8000, burnin = 1000, thin = 2,
                                              b0 = rep(0, 1 + q), V0 = diag(10, 1 + q),
                                              a_tau = 1, b_tau = 0.01,
@@ -174,7 +174,7 @@ theta_true[1:3,]
 y_na = y
 y_na[ sample(1:n, n*0.3) ] <- NA
 library(tictoc); tic()
-out_gibbs_HS <- gibbs_gamma_pliable_lognormal(y_na, X, Z ,
+out_gibbs_HS <- pliable_HS_gamma_reg(y_na, X, Z ,
                                              niter = 5000, burnin = 1000, thin = 2,
                                              b0 = rep(0, 1 + q), V0 = diag(10, 1 + q),
                                              a_tau = 1, b_tau = 0.01,
